@@ -191,6 +191,13 @@
   .tx{font-weight:700}
   .tx-y{color:var(--ok)}
   .tx-n{color:var(--bad)}
+  /* 长文本单元格：内容溢出时可点击查看全文 */
+  table.tbl td[data-full].ov .cl{cursor:pointer}
+  table.tbl td[data-full].ov .cl:hover{color:var(--acc)}
+  /* 点击查看全文的气泡 */
+  #tip{position:fixed;z-index:1000;max-width:min(340px,86vw);white-space:pre-line;word-break:break-word;line-height:1.5;font-size:12.5px;color:var(--ink);background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:0 12px 32px rgba(30,41,59,.20);display:none}
+  #tip::after{content:"";position:absolute;bottom:-6px;left:50%;transform:translateX(-50%) rotate(45deg);width:10px;height:10px;background:var(--panel);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+  #tip.flip::after{bottom:auto;top:-6px;border-right:none;border-bottom:none;border-left:1px solid var(--line);border-top:1px solid var(--line)}
 
   footer{margin-top:40px;padding-top:20px;border-top:1px solid var(--line);
     display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;
@@ -347,6 +354,42 @@ function esc(s){
   return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+/* ── 长文本气泡：点击单元格查看全文 ───────────────────── */
+let tipEl=null;
+function ensureTip(){
+  if(tipEl) return tipEl;
+  tipEl=document.createElement('div');
+  tipEl.id='tip';
+  document.body.appendChild(tipEl);
+  return tipEl;
+}
+function showTip(text,anchor){
+  const t=ensureTip();
+  t.textContent=text;
+  t.classList.remove('flip');
+  t.style.display='block';
+  const r=anchor.getBoundingClientRect();
+  const tw=t.offsetWidth, th=t.offsetHeight;
+  let x=r.left+r.width/2-tw/2;
+  x=Math.max(8, Math.min(x, window.innerWidth-tw-8));
+  let y=r.top-th-8;
+  if(y<8){ y=r.bottom+8; t.classList.add('flip'); }
+  t.style.left=x+'px'; t.style.top=y+'px';
+}
+function hideTip(){ if(tipEl) tipEl.style.display='none'; }
+/* 仅在内容真正溢出（被截断）时才让单元格可点击 */
+function bindOverflow(){
+  document.querySelectorAll('#list td[data-full]').forEach(td=>{
+    const span=td.querySelector('.cl');
+    if(!span) return;
+    if(span.scrollWidth>span.clientWidth || span.scrollHeight>span.clientHeight){
+      td.classList.add('ov');
+      if(!td._tipbound){ td._tipbound=true; td.addEventListener('click',e=>{ e.stopPropagation(); showTip(td.getAttribute('data-full'), td); }); }
+    }
+  });
+}
+document.addEventListener('click',e=>{ if(tipEl && !tipEl.contains(e.target)) hideTip(); });
+
 function updateSrcs(){
   /* 来源表联动：按当前选择的文件重建选项（未选文件则列全部） */
   const sel = $('#f-src');
@@ -461,13 +504,13 @@ function renderTable(rows){
       }).join('');
       return `<tr>
         <td class="c-src"><span class="cl">${esc(r.来源表名||'')} R${esc(r.来源行号??'')}</span></td>
-        <td class="c-name" title="${esc(r.渠道名称)}"><span class="cl">${esc(r.渠道名称)}</span></td>
+        <td class="c-name" data-full="${esc(r.渠道名称)}"><span class="cl">${esc(r.渠道名称)}</span></td>
         <td class="c-mode"><span class="cl">${esc(r.运输方式||'—')}</span></td>
         <td><span class="cl">${esc(r.国家||'—')}</span></td>
         <td><span class="cl">${esc(r.货物类型||'—')}</span></td>
         <td>${tax}</td>
-        <td title="${esc(dest)}"><span class="cl">${esc(dest)}</span></td>
-        <td class="c-eta" title="${esc(r.时效||'—')}"><span class="cl">${esc(r.时效||'—')}</span></td>
+        <td data-full="${esc(dest)}"><span class="cl">${esc(dest)}</span></td>
+        <td class="c-eta" data-full="${esc(r.时效||'—')}"><span class="cl">${esc(r.时效||'—')}</span></td>
         ${priceTd}
       </tr>`;
     }).join('');
@@ -485,6 +528,7 @@ function renderTable(rows){
       </div>
     </div>`;
   }).join('');
+  requestAnimationFrame(bindOverflow);
 }
 
 ['file','src','country','head','tail','goods','tax'].forEach(k=>{
