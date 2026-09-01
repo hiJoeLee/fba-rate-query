@@ -282,6 +282,23 @@
     table.tbl td.num{padding:11px 8px}
     .stat{padding:10px 12px;min-width:0;flex:1}
     .stats{display:flex}
+    /* 手机端统计卡片轻量化：去卡片感、缩小字号、紧凑排列，避免喧宾夺主 */
+    header{padding-top:22px;padding-bottom:14px}
+    .brand .kicker{font-size:10px;letter-spacing:.3em}
+    .brand h1{font-size:26px}
+    .brand .sub{font-size:11.5px;letter-spacing:.02em}
+    .stats{
+      width:100%;justify-content:space-between;gap:0;
+      padding:8px 12px;border-radius:8px;
+      background:var(--panel2);border:1px solid var(--line);
+    }
+    .stat{
+      background:none;border:none;box-shadow:none;border-top:none;
+      padding:2px 4px;min-width:0;flex:1;text-align:center;
+    }
+    .stat .n{font-size:17px;font-weight:700}
+    .stat .l{font-size:10.5px;letter-spacing:.05em;margin-top:1px}
+    .stat + .stat{border-left:1px solid var(--line2)}
     #to-top{right:16px;bottom:18px;width:44px;height:44px;font-size:19px}
   }
 </style>
@@ -291,9 +308,8 @@
 
   <header>
     <div class="brand">
-      <div class="kicker">FBA RATE QUERY · MINI MVP</div>
       <h1>FBA 运价<em>查询台</em></h1>
-      <div class="sub">数据源：皓鹏国际同行vip8月31日 · 已拆解 4 个来源表 · 原样展示</div>
+      <div class="sub">数据源：皓鹏国际同行vip8月31日 · 已拆解 4 个来源表</div>
     </div>
     <div class="stats">
       <div class="stat"><div class="n" id="st-rec">—</div><div class="l">运价记录</div></div>
