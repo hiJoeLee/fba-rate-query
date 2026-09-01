@@ -220,7 +220,9 @@
       border-bottom:1px dashed var(--line);background:rgba(224,123,31,.04);
     }
     table.tbl thead th{position:static;padding:10px 12px}
+    table.tbl thead th.num{padding:10px 8px}
     table.tbl tbody td{padding:11px 12px}
+    table.tbl td.num{padding:11px 8px}
     .stat{padding:10px 12px;min-width:0;flex:1}
     .stats{display:flex}
   }
@@ -444,6 +446,9 @@ function renderTable(rows){
     const unit = g[0].单位 || '';
     /* 信息列固定宽，价格列均分剩余空间（table-layout:fixed） */
     const infoCols = [['来源',96],['渠道名称',190],['运输方式',110],['国家',64],['货型',72],['包税',56],['目的地',150],['时效',170]];
+    const infoW = infoCols.reduce((s,c)=>s+c[1],0);   // 信息列固定总宽
+    const priceW = 60;                                // 每个档位列最小可视宽度，避免手机端被挤压重叠
+    const tMin = infoW + tiers.length*priceW;         // 该分组表格最小宽度，保证价格列可读
     const colgroup = '<colgroup>' + infoCols.map(c=>`<col style="width:${c[1]}px">`).join('') + tiers.map(()=>'<col>').join('') + '</colgroup>';
     const headCells = infoCols.map(c=>`<th>${c[0]}</th>`).join('');
     const priceCells = tiers.map(t=>`<th class="num">${esc(t)}</th>`).join('');
@@ -472,7 +477,7 @@ function renderTable(rows){
         <span class="tg-meta">${g.length} 条 · 单位 ${esc(unit)}</span>
       </div>
       <div class="tbl-scroll">
-        <table class="tbl">
+        <table class="tbl" style="min-width:${tMin}px">
           ${colgroup}
           <thead><tr>${headCells}${priceCells}</tr></thead>
           <tbody>${body}</tbody>
