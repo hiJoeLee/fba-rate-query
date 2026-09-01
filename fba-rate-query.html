@@ -389,6 +389,9 @@ function bindOverflow(){
   });
 }
 document.addEventListener('click',e=>{ if(tipEl && !tipEl.contains(e.target)) hideTip(); });
+/* 页面/表格滚动或窗口缩放时，气泡脱离锚点，自动隐藏 */
+document.addEventListener('scroll',()=>hideTip(),true);
+window.addEventListener('resize',()=>hideTip());
 
 function updateSrcs(){
   /* 来源表联动：按当前选择的文件重建选项（未选文件则列全部） */
