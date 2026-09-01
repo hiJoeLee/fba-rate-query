@@ -176,7 +176,9 @@
     white-space:nowrap;font-size:11px;letter-spacing:.02em;
   }
   table.tbl thead th.num{text-align:right}
-  table.tbl tbody td{padding:7px 10px;border-bottom:1px solid var(--line);color:var(--ink);vertical-align:middle;white-space:nowrap}
+  table.tbl tbody td{padding:7px 10px;border-bottom:1px solid var(--line);color:var(--ink);vertical-align:middle}
+  table.tbl tbody td .cl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.45;word-break:break-all}
+  table.tbl tbody td.c-eta .cl{white-space:pre-line}
   table.tbl tbody tr:nth-child(even){background:rgba(30,41,59,.015)}
   table.tbl tbody tr:hover{background:rgba(224,123,31,.05)}
   table.tbl td.num{text-align:right;font-family:var(--mono);font-weight:600;color:var(--acc2);white-space:nowrap}
@@ -452,14 +454,14 @@ function renderTable(rows){
         return (v===undefined||v===null) ? '<td class="dash">—</td>' : `<td class="num" title="${esc(fmtFull(v))}">${fmtPrice(v)}</td>`;
       }).join('');
       return `<tr>
-        <td class="c-src">${esc(r.来源表名||'')} R${esc(r.来源行号??'')}</td>
-        <td class="c-name" title="${esc(r.渠道名称)}"><span class="clamp2">${esc(r.渠道名称)}</span></td>
-        <td class="c-mode">${esc(r.运输方式||'—')}</td>
-        <td>${esc(r.国家||'—')}</td>
-        <td>${esc(r.货物类型||'—')}</td>
+        <td class="c-src"><span class="cl">${esc(r.来源表名||'')} R${esc(r.来源行号??'')}</span></td>
+        <td class="c-name" title="${esc(r.渠道名称)}"><span class="cl">${esc(r.渠道名称)}</span></td>
+        <td class="c-mode"><span class="cl">${esc(r.运输方式||'—')}</span></td>
+        <td><span class="cl">${esc(r.国家||'—')}</span></td>
+        <td><span class="cl">${esc(r.货物类型||'—')}</span></td>
         <td>${tax}</td>
-        <td title="${esc(dest)}"><span class="clamp2">${esc(dest)}</span></td>
-        <td title="${esc(r.时效||'—')}"><span class="clamp2">${esc(r.时效||'—')}</span></td>
+        <td title="${esc(dest)}"><span class="cl">${esc(dest)}</span></td>
+        <td class="c-eta" title="${esc(r.时效||'—')}"><span class="cl">${esc(r.时效||'—')}</span></td>
         ${priceTd}
       </tr>`;
     }).join('');
