@@ -211,15 +211,16 @@
     .f-toggle:hover{border-color:var(--acc);color:var(--acc)}
     .filterbar.collapsed .frow{display:none}
     .filterbar.collapsed .f-toggle{margin-bottom:0}
-    /* 表格手机端：行距加大 + 左右滑动提示 */
+    /* 表格手机端：横向滚动 + 吸顶关闭（小屏幕优先保证能看全字段） */
+    .tbl-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
     .tbl-scroll::before{
       content:"← 左右滑动查看全部档位 →";
       display:block;text-align:center;padding:7px;
       font-size:11px;color:var(--ink3);font-family:var(--mono);
       border-bottom:1px dashed var(--line);background:rgba(224,123,31,.04);
     }
+    table.tbl thead th{position:static;padding:10px 12px}
     table.tbl tbody td{padding:11px 12px}
-    table.tbl thead th{padding:10px 12px}
     .stat{padding:10px 12px;min-width:0;flex:1}
     .stats{display:flex}
   }
