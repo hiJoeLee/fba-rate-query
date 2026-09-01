@@ -710,6 +710,8 @@ document.addEventListener('click',(e)=>{
   /* 同步「点击展开」提示：收起时显示，展开后隐藏 */
   const exp = g.querySelector('.tg-exp');
   if(exp) exp.style.display = g.classList.contains('closed') ? '' : 'none';
+  /* 收起状态无法判定溢出，展开后须重新绑定长文本点击气泡（等渲染完成再判） */
+  if(!g.classList.contains('closed')) requestAnimationFrame(bindOverflow);
 });
 
 /* 回顶部：滚动超过阈值浮现，点击平滑回到顶部 */
