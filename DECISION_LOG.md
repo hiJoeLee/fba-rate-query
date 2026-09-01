@@ -26,6 +26,8 @@
 - `fill_template.py` — 生成器脚本；`皓鹏test.xlsx`、`英国包税专线.xlsx` 等为源表。
 - `皓鹏test_导出对照/` — 导出对照产物（各渠道 CSV、`*_报价.json`、`通道x重量档x单价_对照.csv`），用于校验解析成果。
 
+**拆解进度外部台账**：腾讯文档《三张运价表sheet清单》跟踪三张运价表全部 sheet 的拆解进度（[docs.qq.com/sheet/DYUJPTG56b01UU0Nh](https://docs.qq.com/sheet/DYUJPTG56b01UU0Nh)）。列为「文件名称 / sheet表名称 / 是否隐藏 / 优先级 / 状态」，状态列 ✅已确认 的 sheet 即已拆解入库；当前已确认 的 4 张 sheet 正好对应查询页数据集的 4 张来源表（英国空卡铁海、澳大利亚空海、美中休斯顿海卡、美东纽约OA非OA海卡）。后续推进拆解时以此为准对表划销。
+
 ---
 
 ## 待办 / 下一步
