@@ -156,7 +156,8 @@
   .vswitch{display:flex;gap:6px;align-items:center}
   .vbtn{
     background:none;border:1px solid var(--line2);color:var(--ink2);border-radius:7px;
-    padding:5px 14px;font-size:12px;cursor:pointer;transition:all .15s;font-family:var(--mono)
+    padding:5px 14px;font-size:12px;cursor:pointer;transition:all .15s;font-family:var(--mono);
+    white-space:nowrap;flex-shrink:0
   }
   .vbtn.active{background:var(--acc);border-color:var(--acc);color:#fff}
   .vbtn:hover:not(.active){border-color:var(--acc);color:var(--acc)}
@@ -208,6 +209,11 @@
     header{padding-top:28px}
     .frow{grid-template-columns:1fr 1fr}
     .card .top{flex-direction:column}
+    /* 手机端 fmeta 换行：记录数独占一行，按钮+重置独占一行 */
+    .fmeta{flex-wrap:wrap;gap:10px}
+    .fmeta .count{flex:1 1 100%}
+    .fmeta .vswitch{flex:1 1 auto;justify-content:center}
+    .fmeta .vbtn{padding:6px 16px;font-size:13px}
     /* 手机端筛选折叠：点按钮展开/收起 */
     .f-toggle{
       display:flex;align-items:center;justify-content:center;gap:6px;width:100%;
