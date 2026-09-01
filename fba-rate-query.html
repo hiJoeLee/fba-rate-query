@@ -522,6 +522,18 @@ $('#f-toggle').addEventListener('click',()=>{
   syncFbH();
 });
 
+/* 手机端：筛选条件展开时，点击吸顶筛选栏以外的区域自动收起 */
+document.addEventListener('click',(e)=>{
+  const fb = document.querySelector('.filterbar');
+  /* 仅手机端有「筛选条件」收拢按钮时才启用（桌面端始终展开，无需自动收起） */
+  if (getComputedStyle($('#f-toggle')).display === 'none') return;
+  if (fb.classList.contains('collapsed')) return;   /* 已收起则无需处理 */
+  if (fb.contains(e.target)) return;                /* 点击在筛选栏内部则不收起 */
+  fb.classList.add('collapsed');
+  $('#f-toggle').textContent = '筛选条件 ▾';
+  syncFbH();
+});
+
 /* 表头冻结：滚动/尺寸变化时同步筛选栏高度，表头停在其下方不被覆盖 */
 function syncFbH(){
   const fb = document.querySelector('.filterbar');
