@@ -1,2 +1,5 @@
 # 本仓库只发布静态页面，无需忽略额外文件
 .DS_Store
+
+# Local Netlify folder
+.netlify
