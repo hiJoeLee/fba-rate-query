@@ -9,7 +9,7 @@
 1. 先读 `README.md`（项目定位、数据结构、字段字典、更新流程）
 2. 再读本文件（近期决策、本期改动、已知待办、踩坑点）
 3. 打开 `fba-rate-query.html` / `index.html` 确认当前代码状态
-4. 若下一步涉及 `拆解运价`/解析端，切到 `~/Documents/trae_projects/fba-rate-parser/` 读 `docs/报价表_读取协议_模板.md` 与 `docs/皓鹏运价表读取规则.md`
+4. 若下一步涉及 `拆解运价`/解析端，切到 `~/Documents/trae_projects/fba-rate-parser/` 读 `docs/报价表_读取协议_模板.md`、`docs/皓鹏运价表读取规则.md` 与 `docs/皓鹏vip表读取规则_澳美.md`
 
 代码级续接所需的事实：数据以 `window.__FBA_DATA__ = [...]` 内嵌在 HTML 里，JSON 解出 447 条记录；前端用 `table-layout:fixed` + `colgroup` 均分价格列，信息列固定宽，两行截断（`.cl`）用于渠道/目的地/时效三列。
 
@@ -22,9 +22,10 @@
 解析端已沉淀的权威文档（只做导航，此处不复制内容）：
 
 - `docs/报价表_读取协议_模板.md` — 标准字段字典、计费主体、派送方式/通道拆分、计费档、单位约定（元/KG vs 元/CBM）、附加费规则、多供应商适配规范。
-- `docs/皓鹏运价表读取规则.md` — 当前皓鹏表的结构化读取规则：Sheet 布局、列段含义、行段定义、查价步骤伪代码、已知价格校验、防错校验（定位留痕/行属性二次确认/差异归零）。
-- `parser/fill_template.py` — 生成器脚本；源表（`皓鹏test.xlsx`、`英国包税专线.xlsx` 等）在 `samples/`，gitignore 排除。
-- `golden/皓鹏test_导出对照/` — 导出对照产物（各渠道 CSV、`*_报价.json`、`通道x重量档x单价_对照.csv`），用于校验解析成果。
+- `docs/皓鹏运价表读取规则.md` — 英国空卡铁海的读取规则：Sheet 布局、列段含义、行段定义、查价步骤伪代码、防错校验。
+- `docs/皓鹏vip表读取规则_澳美.md` — 澳大利亚空海 / 美中休斯顿海卡 / 美东纽约OA非OA海卡的读取规则（当前 4 张已确认表中的 3 张）。
+- `parser/fill_template.py` + `parser/sheet_configs.py` — 唯一入口脚本与表配置：源 Excel → 长表 JSON → 黄金样本 + 模板 Excel。源表（`samples/`）与运行产物（`out/`）gitignore 排除，不入库。
+- `golden/皓鹏vip8月31日_导出对照/` — 最新 4 张已确认表的黄金样本（每表：报价.json + 对照csv + 渠道csv，共 987 单价点），当前校验基准；`golden/皓鹏test_导出对照/` 为旧 test 样本的历史产物。
 
 **拆解进度外部台账**：腾讯文档《三张运价表sheet清单》跟踪三张运价表全部 sheet 的拆解进度（[docs.qq.com/sheet/DYUJPTG56b01UU0Nh](https://docs.qq.com/sheet/DYUJPTG56b01UU0Nh)）。列为「文件名称 / sheet表名称 / 是否隐藏 / 优先级 / 状态」，状态列 ✅已确认 的 sheet 即已拆解入库；当前已确认 的 4 张 sheet 正好对应查询页数据集的 4 张来源表（英国空卡铁海、澳大利亚空海、美中休斯顿海卡、美东纽约OA非OA海卡）。后续推进拆解时以此为准对表划销。本地快照见解析端 `fba-rate-parser/docs/拆解进度台账.md`（初始化时展示）。
 
