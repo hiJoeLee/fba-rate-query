@@ -309,7 +309,7 @@
   <header>
     <div class="brand">
       <h1>FBA 运价<em>查询台</em></h1>
-      <div class="sub">数据源：皓鹏国际同行vip8月31日 · 已拆解 4 个来源表</div>
+      <div class="sub">数据源：皓鹏国际同行vip8月31日 · 已拆解 <span id="sub-src">—</span> 个来源表 · 发布时间：<span id="pub-date">2026-09-10</span></div>
     </div>
     <div class="stats">
       <div class="stat"><div class="n" id="st-rec">—</div><div class="l">运价记录</div></div>
@@ -400,6 +400,7 @@ function init(){
   const chSet = new Set(DATA.map(r=>r.渠道名称));
   $('#st-rec').textContent = DATA.length.toLocaleString();
   $('#st-src').textContent = srcsAll.length;
+  $('#sub-src').textContent = srcsAll.length;
   $('#st-country').textContent = countries.length;
   $('#st-ch').textContent = chSet.size;
   $('#total').textContent = DATA.length;
