@@ -419,23 +419,37 @@ function splitMode(m){
 
 /* ── 邮编查询 ───────────────────────────────
    位宽正源 = 解析端 sheet_configs.ZIP_WIDTH（美国 5 / 澳大利亚 4）。
-   口径见解析端 docs/报价表_读取协议_模板.md §5.9.3。 */
+   区间字段口径见解析端 docs/报价表_读取协议_模板.md §5.9.3。
+   消费端口径 = B（宽松）：区间命中的 + 全国统一价（不分区）的一并列出 ——
+   「不按邮编分档」的表本身就覆盖全境，查价时属有效候选。 */
 const ZIP_WIDTH = {'美国':5,'澳大利亚':4};
 const ZIP_COUNTRY = Object.fromEntries(Object.entries(ZIP_WIDTH).map(([c,w])=>[w,c]));
 const ZIP_HINT = '5位=美国 / 4位=澳大利亚';
-/* 该记录是否覆盖客户邮编：位数须与该国位宽一致，且落在闭区间内 */
+/* 严格判定：该记录有邮编区间，且客户邮编落在闭区间内 */
+function zipRangeHit(r, digits){
+  const lo = r.开始邮编, hi = r.结束邮编;
+  if(!lo || !hi) return false;
+  return Number(lo) <= Number(digits) && Number(digits) <= Number(hi);
+}
+/* 该记录是否可作为该邮编的候选（口径 B）：
+   1) 位数须与该国位宽一致 —— 防跨国家误命中
+      （4 位澳洲邮编 2000 的数值恰好落在美国 00000-39999 区间内）
+   2) 有邮编区间 → 按闭区间判定
+   3) 无邮编区间 → 全国统一价、不按邮编分档 → 视为覆盖全境，一并列出 */
 function zipHit(r, digits){
   const w = ZIP_WIDTH[r.国家];
-  if(!w || digits.length !== w) return false;   // 位数不符 → 不命中（防跨国家误命中）
-  const lo = r.开始邮编, hi = r.结束邮编;
-  if(!lo || !hi) return false;                  // 该表不按邮编分档
-  return Number(lo) <= Number(digits) && Number(digits) <= Number(hi);
+  if(!w || digits.length !== w) return false;    // 位数不符 → 不命中
+  if(!r.开始邮编 || !r.结束邮编) return true;     // 口径 B：全国统一价 → 覆盖全境
+  return zipRangeHit(r, digits);
 }
 function zipHint(d){
   const el = $('#f-zip-hint');
   const c = ZIP_COUNTRY[d.length];
-  el.textContent = !d ? ZIP_HINT : (c ? '按「'+c+'」'+d.length+' 位匹配邮编区间' : '需 4 位或 5 位数字');
-  el.style.color = (!d || c) ? '' : 'var(--bad)';
+  if(!d){ el.textContent = ZIP_HINT; el.style.color = ''; return; }
+  if(!c){ el.textContent = '需 4 位或 5 位数字'; el.style.color = 'var(--bad)'; return; }
+  const n = DATA.filter(r=>zipRangeHit(r,d)).length;
+  el.textContent = '按「'+c+'」'+d.length+' 位匹配（含全国统一价）· 区间命中 '+n+' 条';
+  el.style.color = '';
 }
 
 /* 初始化选项 */
