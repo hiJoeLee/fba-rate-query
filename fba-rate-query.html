@@ -91,6 +91,7 @@
   select:hover,input[type=search]:hover{border-color:var(--acc)}
   select:focus,input[type=search]:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(224,123,31,.12)}
   .fitem.search{grid-column:1/-1}
+  .fitem .pair{display:grid;grid-template-columns:minmax(150px,260px) 1fr;gap:8px;align-items:start}
   .fmeta{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px dashed var(--line)}
   .fmeta .count{font-family:var(--mono);font-size:13px;color:var(--ink2)}
   .fmeta .count b{color:var(--acc2);font-size:15px}
@@ -272,6 +273,7 @@
       font-family:var(--mono);transition:all .15s;
     }
     .f-toggle:hover{border-color:var(--acc);color:var(--acc)}
+    .fitem .pair{grid-template-columns:1fr}
     .filterbar.collapsed .frow{display:none}
     .filterbar.collapsed .f-toggle{margin-bottom:0}
     /* 表格手机端：再加一条「左右滑动」提示条（滚动容器与吸顶已在基础样式里） */
@@ -348,12 +350,16 @@
       <div class="fitem"><label>是否包税</label>
         <select id="f-tax"><option value="">全部</option><option value="是">包税</option><option value="否">不包税</option></select>
       </div>
-      <div class="fitem"><label>邮编查询（客户邮编）</label>
-        <input type="search" id="f-zip" inputmode="numeric" autocomplete="off" placeholder="如 20000 / 2000">
-        <div class="zhint" id="f-zip-hint">5位=美国 / 4位=澳大利亚</div>
-      </div>
-      <div class="fitem search"><label>关键词搜索（渠道名 / 仓库 / 城市 / 目的地）</label>
-        <input type="search" id="f-q" placeholder="输入关键词，如：休斯敦 / OA / 深圳 / 亚马逊…">
+      <div class="fitem search">
+        <div class="pair">
+          <div><label>邮编查询（客户邮编）</label>
+            <input type="search" id="f-zip" inputmode="numeric" autocomplete="off" placeholder="如 20000 / 2000">
+            <div class="zhint" id="f-zip-hint">5位=美国 / 4位=澳大利亚</div>
+          </div>
+          <div><label>关键词搜索（渠道名 / 仓库 / 城市 / 目的地）</label>
+            <input type="search" id="f-q" placeholder="输入关键词，如：休斯敦 / OA / 深圳 / 亚马逊…">
+          </div>
+        </div>
       </div>
     </div>
     <div class="fmeta">
