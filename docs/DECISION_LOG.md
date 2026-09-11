@@ -145,7 +145,7 @@
 
 ## 踩坑点
 
-- **多文件同步**：三处结构一致的页面（`index.html`、`fba-rate-query.html`、`/tmp/fba_page_template.html`）必须逐字节一致。任何一处漏改都会造成线上「改了没生效」。每步提交前用 `diff fba-rate-query.html index.html` 校验。
+- **多文件同步**：两处结构一致的页面（`index.html`、`fba-rate-query.html`）必须逐字节一致。任何一处漏改都会造成线上「改了没生效」。每步提交前用 `diff fba-rate-query.html index.html` 校验。（`/tmp/fba_page_template.html` 已于 9/11 废弃、不再维护，**不要再同步它**。）
 - **推送超时**：直连 GitHub 时常 `Recv failure: Operation timed out`。用 `/Users/Zhuanz1/git-push.sh` 触发，或先确认 Clash 在 `127.0.0.1:7897` 监听。
 - **计费单位易混**：`单位` 存的是 `KG` / `CBM`（不带「元/」）。按体积计费的 `CBM` 记录不能按 KG 直接查，否则比价会错。
 - **两套筛选口径**：`运输方式` 是 `干线/末端` 拼接（如 `空运/快递派`），前端拆成两段独立筛选；`渠道名称` 是更完整的拼接，两者不等价。
