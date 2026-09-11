@@ -77,6 +77,7 @@
   }
   .frow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
   .fitem label{display:block;font-size:10px;letter-spacing:.14em;color:var(--ink3);margin-bottom:5px;text-transform:uppercase}
+  .fitem .zhint{margin-top:5px;font-size:10.5px;font-family:var(--mono);color:var(--ink3);min-height:13px}
   select,input[type=search]{
     width:100%;background:var(--bg2);color:var(--ink);
     border:1px solid var(--line2);border-radius:8px;
@@ -347,6 +348,10 @@
       <div class="fitem"><label>是否包税</label>
         <select id="f-tax"><option value="">全部</option><option value="是">包税</option><option value="否">不包税</option></select>
       </div>
+      <div class="fitem"><label>邮编查询（客户邮编）</label>
+        <input type="search" id="f-zip" inputmode="numeric" autocomplete="off" placeholder="如 20000 / 2000">
+        <div class="zhint" id="f-zip-hint">5位=美国 / 4位=澳大利亚</div>
+      </div>
       <div class="fitem search"><label>关键词搜索（渠道名 / 仓库 / 城市 / 目的地）</label>
         <input type="search" id="f-q" placeholder="输入关键词，如：休斯敦 / OA / 深圳 / 亚马逊…">
       </div>
@@ -397,13 +402,34 @@ const PUBLISHED = {
 };
 const pubDateOf = (src)=>PUBLISHED[String(src||'').trim()] || '—';
 const $ = s => document.querySelector(s);
-const state = {file:'', src:'', country:'', head:'', tail:'', goods:'', tax:'', q:'', view:'table'};
+const state = {file:'', src:'', country:'', head:'', tail:'', goods:'', tax:'', q:'', zip:'', view:'table'};
 
 /* 解析运输方式 头程/尾程 */
 function splitMode(m){
   if(!m) return ['',''];
   const [a,b] = String(m).split('/');
   return [a||'', (b||'').replace(/派$/,'')+'派'||''];
+}
+
+/* ── 邮编查询 ───────────────────────────────
+   位宽正源 = 解析端 sheet_configs.ZIP_WIDTH（美国 5 / 澳大利亚 4）。
+   口径见解析端 docs/报价表_读取协议_模板.md §5.9.3。 */
+const ZIP_WIDTH = {'美国':5,'澳大利亚':4};
+const ZIP_COUNTRY = Object.fromEntries(Object.entries(ZIP_WIDTH).map(([c,w])=>[w,c]));
+const ZIP_HINT = '5位=美国 / 4位=澳大利亚';
+/* 该记录是否覆盖客户邮编：位数须与该国位宽一致，且落在闭区间内 */
+function zipHit(r, digits){
+  const w = ZIP_WIDTH[r.国家];
+  if(!w || digits.length !== w) return false;   // 位数不符 → 不命中（防跨国家误命中）
+  const lo = r.开始邮编, hi = r.结束邮编;
+  if(!lo || !hi) return false;                  // 该表不按邮编分档
+  return Number(lo) <= Number(digits) && Number(digits) <= Number(hi);
+}
+function zipHint(d){
+  const el = $('#f-zip-hint');
+  const c = ZIP_COUNTRY[d.length];
+  el.textContent = !d ? ZIP_HINT : (c ? '按「'+c+'」'+d.length+' 位匹配邮编区间' : '需 4 位或 5 位数字');
+  el.style.color = (!d || c) ? '' : 'var(--bad)';
 }
 
 /* 初始化选项 */
@@ -507,6 +533,7 @@ function filter(){
     if(state.tail && t!==state.tail) return false;
     if(state.goods && r.货物类型!==state.goods) return false;
     if(state.tax && (r.是否包税||'')!==state.tax) return false;
+    if(state.zip && !zipHit(r, state.zip)) return false;
     if(state.q){
       const hay = [r.渠道名称,r.交货仓库,r.城市,r.FBA仓库,r.国家,r.文件,r.来源表名].join(' ');
       if(!hay.includes(state.q)) return false;
@@ -521,9 +548,9 @@ function render(rows){
   updateToggle();
 }
 
-/* 已生效筛选条件数：8 个筛选项任意一个非空即计 1 */
+/* 已生效筛选条件数：9 个筛选项任意一个非空即计 1 */
 function activeCount(){
-  return ['file','src','country','head','tail','goods','tax','q'].filter(k=>state[k]!=='' && state[k]!=null).length;
+  return ['file','src','country','head','tail','goods','tax','q','zip'].filter(k=>state[k]!=='' && state[k]!=null).length;
 }
 /* 折叠按钮文案 + 「N 项生效」胶囊（仅折叠时展示，防止展开态冗余） */
 function updateToggle(){
@@ -551,9 +578,10 @@ function emptyHtml(){
     + '</div>';
 }
 function resetAll(){
-  ['file','src','country','head','tail','goods','tax'].forEach(k=>{state[k]='';});
+  ['file','src','country','head','tail','goods','tax','zip'].forEach(k=>{state[k]='';});
   state.q='';
   $('#f-file').value='';updateSrcs();$('#f-country').value='';$('#f-head').value='';$('#f-tail').value='';$('#f-goods').value='';$('#f-tax').value='';$('#f-q').value='';
+  $('#f-zip').value=''; zipHint('');
   render(filter());
 }
 
@@ -685,6 +713,13 @@ function renderTable(rows){
     });
 });
 $('#f-q').addEventListener('input',e=>{state.q=e.target.value.trim();render(filter());});
+$('#f-zip').addEventListener('input',e=>{
+  const d = e.target.value.replace(/\D/g,'').slice(0,5);   // 只留数字，最多 5 位
+  if(e.target.value !== d) e.target.value = d;
+  state.zip = d;
+  zipHint(d);
+  render(filter());
+});
 $('#btn-reset').addEventListener('click',resetAll);
 
 /* 空态「重置筛选」按钮（动态注入），用事件委托统一处理 */
