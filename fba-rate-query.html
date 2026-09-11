@@ -200,10 +200,14 @@
   .tgroup.closed .tg-head .caret{transform:rotate(-90deg)}
   .tgroup.closed .tbl-scroll{display:none}
   .tg-exp{color:var(--acc2);font-weight:600;margin-left:6px;font-family:var(--mono)}
-  .tbl-scroll{border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:0 1px 4px rgba(30,41,59,.05)}
+  /* 表格总宽（信息列 + 档位列）会超过内容宽度，故容器必须能横向滚动——
+     否则表格溢出容器，容器白底/边框/圆角只覆盖到容器宽度，右侧档位列会透出页面底色。
+     纵向也设上限，让表头能在容器内吸顶（表头 top 见下）。 */
+  .tbl-scroll{border:1px solid var(--line);border-radius:10px;background:var(--panel);box-shadow:0 1px 4px rgba(30,41,59,.05);
+    overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh}
   table.tbl{table-layout:fixed;border-collapse:collapse;width:100%;min-width:980px;font-size:12.5px}
   table.tbl thead th{
-    position:sticky;top:calc(12px + var(--fb-h, 0px));z-index:5;
+    position:sticky;top:0;z-index:5;
     background:var(--panel2);color:var(--ink2);font-weight:600;
     text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2);
     white-space:nowrap;font-size:11px;letter-spacing:.02em;
@@ -269,15 +273,14 @@
     .f-toggle:hover{border-color:var(--acc);color:var(--acc)}
     .filterbar.collapsed .frow{display:none}
     .filterbar.collapsed .f-toggle{margin-bottom:0}
-    /* 表格手机端：横向+纵向滚动容器，表头在容器内吸顶，保留横向滑动查看全部档位 */
-    .tbl-scroll{overflow:auto;-webkit-overflow-scrolling:touch;max-height:70vh}
+    /* 表格手机端：再加一条「左右滑动」提示条（滚动容器与吸顶已在基础样式里） */
     .tbl-scroll::before{
       content:"← 左右滑动查看全部档位 →";
       display:block;text-align:center;padding:7px;
       font-size:11px;color:var(--ink3);font-family:var(--mono);
       border-bottom:1px dashed var(--line);background:rgba(224,123,31,.04);
     }
-    table.tbl thead th{position:sticky;top:0;z-index:5;padding:10px 12px}
+    table.tbl thead th{padding:10px 12px}
     table.tbl thead th.num{padding:10px 8px}
     table.tbl tbody td{padding:11px 12px}
     table.tbl td.num{padding:11px 8px}
@@ -624,7 +627,7 @@ function renderTable(rows){
     const tiers = Object.keys(g[0].价格||{});
     const unit = g[0].单位 || '';
     /* 信息列固定宽，价格列均分剩余空间（table-layout:fixed） */
-    const infoCols = [['来源',96],['渠道名称',190],['运输方式',110],['交货地',86],['国家',64],['货型',72],['包税',56],['目的地',150],['城市',86],['开始邮编',80],['结束邮编',80],['时效',170]];
+    const infoCols = [['来源',92],['渠道名称',156],['运输方式',92],['交货地',66],['国家',72],['货型',62],['包税',52],['目的地',124],['城市',72],['开始邮编',68],['结束邮编',68],['时效',144]];
     const infoW = infoCols.reduce((s,c)=>s+c[1],0);   // 信息列固定总宽
     const priceW = 60;                                // 每个档位列最小可视宽度，避免手机端被挤压重叠
     const tMin = infoW + tiers.length*priceW;         // 该分组表格最小宽度，保证价格列可读
