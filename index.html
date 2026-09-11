@@ -219,6 +219,7 @@
   table.tbl td.c-name{font-weight:600}
   table.tbl td.c-src{color:var(--ink2);font-family:var(--mono);font-size:11px}
   table.tbl td.c-mode{white-space:nowrap}
+  table.tbl td.c-zip{font-family:var(--mono);white-space:nowrap;color:var(--ink2)}
   /* 两行截断（渠道/目的地/时效），悬浮显示完整 */
   .clamp2{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;white-space:normal;word-break:break-all;line-height:1.35}
   .tx{font-weight:700}
@@ -589,7 +590,11 @@ function renderCards(rows){
         <div class="mi"><span class="k">发布</span><span class="v">${esc(pubDateOf(r.来源表名))}</span></div>
         <div class="mi"><span class="k">时效</span><span class="v">${esc(r.时效||'—')}</span></div>
         <div class="mi"><span class="k">目的地</span><span class="v">${esc(dest)}</span></div>
-        <div class="mi"><span class="k">交货</span><span class="v">${esc(r.交货仓库||r.交货地||'—')}</span></div>
+        <div class="mi"><span class="k">交货地</span><span class="v">${esc(r.交货地||'—')}</span></div>
+        <div class="mi"><span class="k">交货仓库</span><span class="v">${esc(r.交货仓库||'—')}</span></div>
+        ${r.城市?`<div class="mi"><span class="k">城市</span><span class="v">${esc(r.城市)}</span></div>`:''}
+        ${r.开始邮编?`<div class="mi"><span class="k">开始邮编</span><span class="v">${esc(r.开始邮编)}</span></div>`:''}
+        ${r.结束邮编?`<div class="mi"><span class="k">结束邮编</span><span class="v">${esc(r.结束邮编)}</span></div>`:''}
         ${r.体积重量比?`<div class="mi"><span class="k">重比</span><span class="v">1:${esc(r.体积重量比)}</span></div>`:''}
       </div>
       <div class="price">
@@ -619,7 +624,7 @@ function renderTable(rows){
     const tiers = Object.keys(g[0].价格||{});
     const unit = g[0].单位 || '';
     /* 信息列固定宽，价格列均分剩余空间（table-layout:fixed） */
-    const infoCols = [['来源',96],['渠道名称',190],['运输方式',110],['国家',64],['货型',72],['包税',56],['目的地',150],['时效',170]];
+    const infoCols = [['来源',96],['渠道名称',190],['运输方式',110],['交货地',86],['国家',64],['货型',72],['包税',56],['目的地',150],['城市',86],['开始邮编',80],['结束邮编',80],['时效',170]];
     const infoW = infoCols.reduce((s,c)=>s+c[1],0);   // 信息列固定总宽
     const priceW = 60;                                // 每个档位列最小可视宽度，避免手机端被挤压重叠
     const tMin = infoW + tiers.length*priceW;         // 该分组表格最小宽度，保证价格列可读
@@ -637,10 +642,14 @@ function renderTable(rows){
         <td class="c-src"><span class="cl">${esc(r.来源表名||'')} R${esc(r.来源行号??'')}</span></td>
         <td class="c-name" data-full="${esc(r.渠道名称)}"><span class="cl">${esc(r.渠道名称)}</span></td>
         <td class="c-mode"><span class="cl">${esc(r.运输方式||'—')}</span></td>
+        <td><span class="cl">${esc(r.交货地||'—')}</span></td>
         <td><span class="cl">${esc(r.国家||'—')}</span></td>
         <td><span class="cl">${esc(r.货物类型||'—')}</span></td>
         <td>${tax}</td>
         <td data-full="${esc(dest)}"><span class="cl">${esc(dest)}</span></td>
+        <td data-full="${esc(r.城市||'—')}"><span class="cl">${esc(r.城市||'—')}</span></td>
+        <td class="c-zip"><span class="cl">${esc(r.开始邮编||'—')}</span></td>
+        <td class="c-zip"><span class="cl">${esc(r.结束邮编||'—')}</span></td>
         <td class="c-eta" data-full="${esc(r.时效||'—')}"><span class="cl">${esc(r.时效||'—')}</span></td>
         ${priceTd}
       </tr>`;
