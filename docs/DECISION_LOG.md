@@ -7,9 +7,10 @@
 ## 如何续接
 
 1. 先读 `README.md`（项目定位、数据结构、字段字典、更新流程）
-2. 再读本文件（近期决策、本期改动、已知待办、踩坑点）
-3. 打开 `fba-rate-query.html` / `index.html` 确认当前代码状态
-4. 若下一步涉及 `拆解运价`/解析端，切到 `~/Documents/trae_projects/fba-rate-parser/` 读 `docs/报价表_读取协议_模板.md`、`docs/皓鹏运价表读取规则.md` 与 `docs/皓鹏vip表读取规则_澳美.md`
+2. **再读解析端的 `docs/协作与验证规矩.md`**（`~/Documents/trae_projects/fba-rate-parser/docs/协作与验证规矩.md`）—— **两端通用的开工前必读**：结论带证据标记（`[验证]`/`[推断]`/`[假设]`）、设计方案前先做证伪实验。本页改动（数据结构、页端契约、会影响已发布数据的操作）同样适用
+3. 再读本文件（近期决策、本期改动、已知待办、踩坑点）
+4. 打开 `fba-rate-query.html` / `index.html` 确认当前代码状态
+5. 若下一步涉及 `拆解运价`/解析端，切到 `~/Documents/trae_projects/fba-rate-parser/` 读 `docs/报价表_读取协议_模板.md`、`docs/皓鹏运价表读取规则.md` 与 `docs/皓鹏vip表读取规则_澳美.md`
 
 代码级续接所需的事实：数据以 `window.__FBA_DATA__ = [...]` 内嵌在 HTML 里，JSON 解出 3245 条记录（12 张来源表）；前端用 `table-layout:fixed` + `colgroup` 均分价格列，信息列固定宽，两行截断（`.cl`）用于渠道/目的地/时效三列。
 
