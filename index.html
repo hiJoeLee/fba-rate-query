@@ -201,7 +201,9 @@
   .tg-head:hover .tg-title{color:var(--acc)}
   .tgroup.closed .tg-head{margin-bottom:0;padding-top:2px}
   .tgroup.closed .tg-head .caret{transform:rotate(-90deg)}
-  .tgroup.closed .tbl-scroll{display:none}
+  .tgroup.closed .tbl-host{display:none}
+  /* 懒渲染：收起的分组 host 内为空，不占任何空间 */
+  .tbl-host:empty{display:none}
   .tg-exp{color:var(--acc2);font-weight:600;margin-left:6px;font-family:var(--mono)}
   /* 表格总宽（信息列 + 档位列）会超过内容宽度，故容器必须能横向滚动——
      否则表格溢出容器，容器白底/边框/圆角只覆盖到容器宽度，右侧档位列会透出页面底色。
@@ -442,6 +444,17 @@ const pubDateOf = (r)=>PUBLISHED[srcKeyOf(r)] || '—';
 const $ = s => document.querySelector(s);
 const state = {file:'', src:'', country:'', head:'', tail:'', goods:'', tax:'', cur:'', q:'', zip:'', view:'table'};
 
+/* ── 渲染性能五条（实测：filter() 仅 0.6ms，瓶颈在「每次输入都全量重建 DOM + 强制布局 193ms」）──
+   1) 分组懒渲染：收起的分组不生成 <tbody>，点击展开时才现场生成 → 收起态零布局成本；
+   2) 自动展开有上限：命中分组少且行数不多时才展开，否则保持目录态（现有「默认收起」语义不变）；
+   3) 输入防抖：连续打字只在停顿后渲染一次，不再按每个字符堆积；
+   4) bindOverflow 推迟到空闲：它读 scrollWidth 会触发强制同步布局（实测 31ms）；
+   5) 卡片视图渐进渲染：首屏先出少量，其余按帧追加。 */
+let groupCache = new Map();          // 分组键 → {tiers, unit, infoCols, rows}，供懒渲染取用
+let cardToken = 0;                   // 卡片渐进渲染的取消令牌
+const AUTO_EXPAND_MAX_GROUPS = 3;    // 命中分组数 ≤ 此值
+const AUTO_EXPAND_MAX_ROWS = 400;    // 且总行数 ≤ 此值 —— 两者同时满足才自动展开
+
 /* 解析运输方式 头程/尾程 */
 function splitMode(m){
   if(!m) return ['',''];
@@ -556,16 +569,28 @@ function showTip(text,anchor){
   t.style.left=x+'px'; t.style.top=y+'px';
 }
 function hideTip(){ if(tipEl) tipEl.style.display='none'; }
-/* 仅在内容真正溢出（被截断）时才让单元格可点击 */
+/* 仅在内容真正溢出（被截断）时才让单元格可点击。
+   三条性能约束：① 已判定的单元格跳过（实测每次重扫 14024 个 td、耗时 31ms，而真实溢出为 0）；
+   ② 不可见的（收起分组内）不判定 —— offsetParent 为空时 scrollWidth 恒为 0，误判会被永久缓存；
+   ③ 由 scheduleOverflow 推迟到空闲帧执行，同帧内多次调用只跑一次。 */
 function bindOverflow(){
   document.querySelectorAll('#list td[data-full]').forEach(td=>{
+    if(td._ovChecked || td.offsetParent===null) return;
     const span=td.querySelector('.cl');
     if(!span) return;
+    td._ovChecked = true;
     if(span.scrollWidth>span.clientWidth || span.scrollHeight>span.clientHeight){
       td.classList.add('ov');
       if(!td._tipbound){ td._tipbound=true; td.addEventListener('click',e=>{ e.stopPropagation(); showTip(td.getAttribute('data-full'), td); }); }
     }
   });
+}
+let overflowPending = false;
+const idleRun = window.requestIdleCallback || (fn=>setTimeout(fn, 1));
+function scheduleOverflow(){
+  if(overflowPending) return;
+  overflowPending = true;
+  idleRun(()=>{ overflowPending = false; bindOverflow(); });
 }
 document.addEventListener('click',e=>{ if(tipEl && !tipEl.contains(e.target)) hideTip(); });
 /* 页面/表格滚动或窗口缩放时，气泡脱离锚点，自动隐藏 */
@@ -608,6 +633,7 @@ function filter(){
 }
 
 function render(rows){
+  clearTimeout(debounceRender._t);   // 有立即渲染时，撤销尚未执行的防抖渲染，避免重复渲染
   $('#cnt').textContent = rows.length;
   state.view==='table' ? renderTable(rows) : renderCards(rows);
   updateToggle();
@@ -650,13 +676,42 @@ function resetAll(){
   render(filter());
 }
 
+/* 搜索/邮编输入防抖：连续打字只在停顿后渲染一次。
+   此前每个字符都触发一次全量重建（实测 ~240ms 阻塞），连打 5 个字符会堆积成 1 秒以上的卡顿。 */
+const RENDER_DEBOUNCE_MS = 180;
+function debounceRender(){
+  clearTimeout(debounceRender._t);
+  debounceRender._t = setTimeout(()=>render(filter()), RENDER_DEBOUNCE_MS);
+}
+/* 卡片视图渐进渲染：首屏先出 CARD_FIRST 条，其余按帧追加，避免一次性构建 15 万个节点 */
+const CARD_FIRST = 60;
+const CARD_CHUNK = 120;
 function renderCards(rows){
   const list = $('#list');
+  const token = ++cardToken;
   if(!rows.length){
     list.innerHTML = emptyHtml();
     return;
   }
-  list.innerHTML = rows.map((r,i)=>{
+  const head = rows.slice(0, CARD_FIRST);
+  list.innerHTML = cardHtml(head, 0);
+  let i = head.length;
+  const more = ()=>{
+    if(token !== cardToken) return;        // 期间已重新筛选/切视图，放弃本次追加
+    if(i >= rows.length){ scheduleOverflow(); return; }
+    const frag = document.createElement('div');
+    frag.innerHTML = cardHtml(rows.slice(i, i+CARD_CHUNK), i);
+    while(frag.firstChild) list.appendChild(frag.firstChild);
+    i += CARD_CHUNK;
+    requestAnimationFrame(more);
+  };
+  if(i < rows.length) requestAnimationFrame(more);
+  else scheduleOverflow();
+}
+/* 卡片 HTML 片段（offset 用于保持入场动画的错峰节奏） */
+function cardHtml(rows, offset){
+  return rows.map((r,j)=>{
+    const i = offset + j;
     const [h,t] = splitMode(r.运输方式);
     const taxCls = r.是否包税==='是'?'tax-y':(r.是否包税==='否'?'tax-n':'');
     const taxTxt = r.是否包税==='是'?'包税':(r.是否包税==='否'?'不包税':'—');
@@ -702,40 +757,27 @@ function renderCards(rows){
   }).join('');
 }
 
-function renderTable(rows){
-  const list = $('#list');
-  if(!rows.length){
-    list.innerHTML = emptyHtml();
-    return;
-  }
-  const groups = new Map();
-  rows.forEach(r=>{
-    const k = srcKeyOf(r) + '\u2502' + r.区间;
-    if(!groups.has(k)) groups.set(k, []);
-    groups.get(k).push(r);
-  });
-  /* 条件式默认收起：未筛选任何条件时，分组收起为「目录」；设了任一条件（含搜索）则全展开 */
-  const allClosed = activeCount() === 0;
-  list.innerHTML = [...groups.entries()].map(([k, g], gi)=>{
-    const [, line, zone] = k.split('\u2502');   // 第 1 段是供应商代码，标题沿用 文件
-    const tiers = Object.keys(g[0].价格||{});
-    const unit = g[0].单位 || '';
-    /* 信息列固定宽，价格列均分剩余空间（table-layout:fixed） */
-    const infoCols = [['来源',92],['渠道名称',156],['运输方式',92],['交货地',66],['国家',72],['货型',62],['包税',52],['货币',56],['目的地',124],['城市',72],['开始邮编',68],['结束邮编',68],['时效',144]];
-    const infoW = infoCols.reduce((s,c)=>s+c[1],0);   // 信息列固定总宽
-    const priceW = 60;                                // 每个档位列最小可视宽度，避免手机端被挤压重叠
-    const tMin = infoW + tiers.length*priceW;         // 该分组表格最小宽度，保证价格列可读
-    const colgroup = '<colgroup>' + infoCols.map(c=>`<col style="width:${c[1]}px">`).join('') + tiers.map(()=>'<col>').join('') + '</colgroup>';
-    const headCells = infoCols.map(c=>`<th>${c[0]}</th>`).join('');
-    const priceCells = tiers.map(t=>`<th class="num">${esc(t)}</th>`).join('');
-    const body = g.map(r=>{
-      const tax = r.是否包税==='是'?'<span class="tx tx-y">包税</span>':(r.是否包税==='否'?'<span class="tx tx-n">不包税</span>':'—');
-      const dest = r.FBA仓库 || r.城市 || (r.开始邮编? (r.开始邮编+' - '+(r.结束邮编||'')) : '') || '—';
-      const priceTd = tiers.map(t=>{
-        const v = (r.价格||{})[t];
-        return (v===undefined||v===null) ? '<td class="dash">—</td>' : `<td class="num" title="${esc(fmtFull(v))}">${fmtPrice(v)}</td>`;
-      }).join('');
-      return `<tr>
+/* 信息列固定宽，价格列均分剩余空间（table-layout:fixed）—— 提为常量，避免每个分组重复构建 */
+const TBL_INFO_COLS = [['来源',92],['渠道名称',156],['运输方式',92],['交货地',66],['国家',72],['货型',62],['包税',52],['货币',56],['目的地',124],['城市',72],['开始邮编',68],['结束邮编',68],['时效',144]];
+
+/* 生成单个分组的表格。懒渲染 —— 仅在分组展开时调用，收起态一个表格 DOM 都不产生 */
+function buildTableHtml(gk){
+  const c = groupCache.get(gk);
+  if(!c) return '';
+  const g = c.rows, tiers = c.tiers;
+  const infoW = TBL_INFO_COLS.reduce((s,x)=>s+x[1],0);   // 信息列固定总宽
+  const tMin = infoW + tiers.length*60;                  // 每档位列最小可视宽 60px，避免手机端挤压重叠
+  const colgroup = '<colgroup>' + TBL_INFO_COLS.map(x=>`<col style="width:${x[1]}px">`).join('') + tiers.map(()=>'<col>').join('') + '</colgroup>';
+  const headCells = TBL_INFO_COLS.map(x=>`<th>${x[0]}</th>`).join('');
+  const priceCells = tiers.map(t=>`<th class="num">${esc(t)}</th>`).join('');
+  const body = g.map(r=>{
+    const tax = r.是否包税==='是'?'<span class="tx tx-y">包税</span>':(r.是否包税==='否'?'<span class="tx tx-n">不包税</span>':'—');
+    const dest = r.FBA仓库 || r.城市 || (r.开始邮编? (r.开始邮编+' - '+(r.结束邮编||'')) : '') || '—';
+    const priceTd = tiers.map(t=>{
+      const v = (r.价格||{})[t];
+      return (v===undefined||v===null) ? '<td class="dash">—</td>' : `<td class="num" title="${esc(fmtFull(v))}">${fmtPrice(v)}</td>`;
+    }).join('');
+    return `<tr>
         <td class="c-src"><span class="cl">${esc(srcLabelOf(r))} R${esc(r.来源行号??'')}</span></td>
         <td class="c-name" data-full="${esc(r.渠道名称)}"><span class="cl">${esc(r.渠道名称)}</span></td>
         <td class="c-mode"><span class="cl">${esc(r.运输方式||'—')}</span></td>
@@ -751,24 +793,51 @@ function renderTable(rows){
         <td class="c-eta" data-full="${esc(r.时效||'—')}"><span class="cl">${esc(r.时效||'—')}</span></td>
         ${priceTd}
       </tr>`;
-    }).join('');
-    const closedCls = allClosed ? ' closed' : '';
-    return `<div class="tgroup${closedCls}" style="animation-delay:${Math.min(gi*60,300)}ms">
-      <div class="tg-head">
-        <span class="caret">▾</span>
-        <span class="tg-title"><span class="ln">${esc(g[0].文件||'')}</span> · ${esc(line)} · ${esc(zone)}</span>
-        <span class="tg-meta">${g.length} 条 · 币种 ${esc(curOf(g[0]))} · 单位 ${esc(unit)} · 发布 ${esc(pubDateOf(g[0]))}${allClosed?`<span class="tg-exp">点击展开</span>`:''}</span>
-      </div>
-      <div class="tbl-scroll">
+  }).join('');
+  return `<div class="tbl-scroll">
         <table class="tbl" style="min-width:${tMin}px">
           ${colgroup}
           <thead><tr>${headCells}${priceCells}</tr></thead>
           <tbody>${body}</tbody>
         </table>
+      </div>`;
+}
+
+function renderTable(rows){
+  const list = $('#list');
+  cardToken++;                       // 切到表格视图：作废尚未完成的卡片渐进渲染
+  if(!rows.length){
+    list.innerHTML = emptyHtml();
+    groupCache = new Map();
+    return;
+  }
+  const groups = new Map();
+  rows.forEach(r=>{
+    const k = srcKeyOf(r) + '\u2502' + r.区间;
+    if(!groups.has(k)) groups.set(k, []);
+    groups.get(k).push(r);
+  });
+  /* 自动展开需三者同时满足：有筛选条件、命中分组少、总行数少。
+     否则维持「目录」态 —— 此前只要输入过搜索词就把 29 个分组全部展开（193ms 强制布局），是卡顿主因。 */
+  const allClosed = !(activeCount() > 0
+    && groups.size <= AUTO_EXPAND_MAX_GROUPS
+    && rows.length <= AUTO_EXPAND_MAX_ROWS);
+  groupCache = new Map();
+  groups.forEach((g,k)=>groupCache.set(k, {tiers:Object.keys(g[0].价格||{}), unit:g[0].单位||'', rows:g}));
+  list.innerHTML = [...groups.entries()].map(([k, g], gi)=>{
+    const [, line, zone] = k.split('\u2502');   // 第 1 段是供应商代码，标题沿用 文件
+    const unit = g[0].单位 || '';
+    const closedCls = allClosed ? ' closed' : '';
+    return `<div class="tgroup${closedCls}" data-gk="${esc(k)}" style="animation-delay:${Math.min(gi*60,300)}ms">
+      <div class="tg-head">
+        <span class="caret">▾</span>
+        <span class="tg-title"><span class="ln">${esc(g[0].文件||'')}</span> · ${esc(line)} · ${esc(zone)}</span>
+        <span class="tg-meta">${g.length} 条 · 币种 ${esc(curOf(g[0]))} · 单位 ${esc(unit)} · 发布 ${esc(pubDateOf(g[0]))}${allClosed?`<span class="tg-exp">点击展开</span>`:''}</span>
       </div>
+      <div class="tbl-host">${allClosed ? '' : buildTableHtml(k)}</div>
     </div>`;
   }).join('');
-  requestAnimationFrame(bindOverflow);
+  scheduleOverflow();
 }
 
 ['file','src','country','head','tail','goods','tax','cur'].forEach(k=>{
@@ -779,13 +848,13 @@ function renderTable(rows){
       render(filter());
     });
 });
-$('#f-q').addEventListener('input',e=>{state.q=e.target.value.trim();render(filter());});
+$('#f-q').addEventListener('input',e=>{state.q=e.target.value.trim();debounceRender();});
 $('#f-zip').addEventListener('input',e=>{
-  const d = e.target.value.replace(/\D/g,'').slice(0,5);   // 只留数字，最多 5 位
+  const d = e.target.value.replace(/\D/g,'').slice(0,5);   // 只留数字，最多 5 位（即时回显，不防抖）
   if(e.target.value !== d) e.target.value = d;
   state.zip = d;
   zipHint(d);
-  render(filter());
+  debounceRender();
 });
 $('#btn-reset').addEventListener('click',resetAll);
 
@@ -840,12 +909,17 @@ document.addEventListener('click',(e)=>{
   if(!head) return;
   const g = head.closest('.tgroup');
   if(!g) return;
+  const host = g.querySelector('.tbl-host');
+  /* 懒渲染：展开时若表格尚未生成，现场生成（首次展开才付这一次 DOM 成本） */
+  if(g.classList.contains('closed') && host && !host.innerHTML){
+    host.innerHTML = buildTableHtml(g.getAttribute('data-gk'));
+  }
   g.classList.toggle('closed');
   /* 同步「点击展开」提示：收起时显示，展开后隐藏 */
   const exp = g.querySelector('.tg-exp');
   if(exp) exp.style.display = g.classList.contains('closed') ? '' : 'none';
-  /* 收起状态无法判定溢出，展开后须重新绑定长文本点击气泡（等渲染完成再判） */
-  if(!g.classList.contains('closed')) requestAnimationFrame(bindOverflow);
+  /* 收起状态不判定溢出；展开后须重新判定长文本是否被截断（等渲染完成再判） */
+  if(!g.classList.contains('closed')) scheduleOverflow();
 });
 
 /* 回顶部：滚动超过阈值浮现，点击平滑回到顶部 */
