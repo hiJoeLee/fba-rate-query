@@ -57,6 +57,9 @@
   }
   .brand h1 em{font-style:normal;color:var(--acc)}
   .brand .sub{color:var(--ink2);font-size:13px;font-family:var(--mono);letter-spacing:.05em}
+  .ana-sw{display:inline-flex;align-items:center;gap:5px;margin-top:2px;
+    font-size:11px;color:var(--ink2);cursor:pointer;user-select:none}
+  .ana-sw input{accent-color:var(--acc);cursor:pointer}
   .stats{display:flex;gap:12px;flex-wrap:wrap}
   .stat{
     background:var(--panel);border:1px solid var(--line);border-radius:10px;
@@ -138,6 +141,12 @@
   .meta .mi{display:flex;gap:8px;align-items:baseline;font-size:12.5px;color:var(--ink2)}
   .meta .mi .k{color:var(--ink3);font-size:11px;letter-spacing:.08em;flex-shrink:0;width:56px}
   .meta .mi .v{color:var(--ink);white-space:pre-line}
+  .notes-link{
+    grid-column:1/-1;margin-top:2px;background:none;
+    border:1px dashed var(--line2);border-radius:8px;padding:6px 10px;cursor:pointer;
+    font-size:12px;color:var(--acc2);text-align:left;
+  }
+  .notes-link:hover{border-color:var(--acc);background:rgba(224,123,31,.06)}
   .price{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
   .price .pl{font-size:11px;letter-spacing:.14em;color:var(--ink3);margin-bottom:8px;font-family:var(--mono)}
   .ptiers{display:flex;flex-wrap:wrap;gap:8px}
@@ -222,11 +231,32 @@
   .nh-list .nh-h{font-weight:600;margin:5px 0 0}
   .nh-list .nh-s{padding-left:14px;margin:1px 0}
   .nh-list .nh-note{color:var(--ink3);margin:1px 0}
+  /* 收费关键信息三色：KG 重量 / CBM 体积 / 金额（元·RMB·人民币·￥）—— 扫一眼识别要另加钱的项目 */
+  .nh-list .hl-kg{color:#1d4ed8;font-weight:700}
+  .nh-list .hl-cbm{color:#16a34a;font-weight:700}
+  .nh-list .hl-money{color:#1d4ed8;font-weight:700}
   .nh-list li.nh-sec{list-style:none;margin:8px 0;padding:0;height:0;border:none;border-top:1px solid var(--line)}
   /* 红条款不做置顶，仅高亮（红=供应商强调，承定案；其余两家红无统一语义不特殊处理） */
   .nh-list li.nh-red{color:#b91c1c;background:rgba(220,38,38,.05);
     border-left:3px solid #ef4444;font-weight:600}
   .tgroup.closed .notes-host{display:none}
+  /* 放大查看：面板标题栏右侧弹窗按钮 + 居中弹窗 */
+  .nh-pop{margin-left:auto;background:none;border:none;padding:1px 2px;cursor:pointer;
+    color:var(--ink3);display:inline-flex;align-items:center;line-height:1}
+  .nh-pop:hover{color:var(--acc)}
+  .nm-mask{position:fixed;inset:0;z-index:1200;background:rgba(15,23,42,.45);
+    display:flex;align-items:center;justify-content:center;padding:24px;animation:nmIn .18s ease}
+  .nm-box{background:var(--panel);color:var(--ink);border-radius:12px;max-width:820px;width:100%;
+    max-height:86vh;display:flex;flex-direction:column;overflow:hidden;
+    box-shadow:0 18px 60px rgba(0,0,0,.28)}
+  .nm-head{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    padding:12px 16px;font-weight:600;color:var(--ink2);background:var(--panel2);
+    border-bottom:1px solid var(--line)}
+  .nm-close{background:none;border:none;cursor:pointer;font-size:18px;color:var(--ink3);line-height:1}
+  .nm-close:hover{color:var(--acc)}
+  .nm-body{overflow:auto;padding:4px 6px}
+  .nm-body .nh-list{padding:12px 18px;max-height:none;overflow:visible;font-size:12.5px;line-height:1.7}
+  @keyframes nmIn{from{opacity:0;transform:scale(.98)}to{opacity:1;transform:scale(1)}}
   /* 表格总宽（信息列 + 档位列）会超过内容宽度，故容器必须能横向滚动——
      否则表格溢出容器，容器白底/边框/圆角只覆盖到容器宽度，右侧档位列会透出页面底色。
      纵向也设上限，让表头能在容器内吸顶（表头 top 见下）。 */
@@ -341,7 +371,8 @@
   <header>
     <div class="brand">
       <h1>FBA 运价<em>查询台</em></h1>
-      <div class="sub">数据源：皓鹏国际同行vip8月31日 · 已拆解 <span id="sub-src">—</span> 个来源表</div>
+      <div class="sub">数据源：<span id="data-src">—</span> · 已拆解 <span id="sub-src">—</span> 个来源表</div>
+      <label class="ana-sw" title="勾选后对业务隐藏真实供应商/文件名，改用代码显示"><input type="checkbox" id="ana" checked><span>隐藏供应商</span></label>
     </div>
     <div class="stats">
       <div class="stat"><div class="n" id="st-rec">—</div><div class="l">运价记录</div></div>
@@ -481,6 +512,33 @@ const _supByName = (()=>{const m=new Map();DATA.forEach(r=>{const n=String(r.来
 const srcClash = n => ((_supByName.get(String(n||''))||new Set()).size > 1);
 const srcLabelOf = r => (srcClash(r&&r.来源表名) ? (supOf(r)+' · '+String((r&&r.来源表名)||'')) : String((r&&r.来源表名)||''));
 const pubDateOf = (r)=>PUBLISHED[srcKeyOf(r)] || '—';
+/* ── 供应商脱敏（显示层，2026-09-18）─────────────────────
+   业务视图隐藏真实供应商名/文件名，用「代码 · 日期」替代；内部（关闭开关）看原名。
+   只改展示、不改数据 —— 身份键(供应商│来源表)、去重、分组、备注、发布日期全部照旧。 */
+const SUP_CODE = { '皓鹏':'HP', '扬程':'YC', '蓝图梦':'LTM' };
+const ANA = { on:true };                                  // 脱敏开关：默认开（业务视图）
+const supLabel = sup => (ANA.on ? (SUP_CODE[sup]||sup) : sup);
+const fileToSup = f => { for(const k in SUP_CODE){ if(String(f||'').includes(k)) return k; } return ''; };
+function fileDateOf(f){
+  if(!f) return '';
+  let m = /(?:20\d{2})[.年\-/]\d{1,2}[.月\-/]\d{1,2}/.exec(f);          // 2026.08.29 / 2026-08-29
+  if(m) return m[0];
+  m = /(\d{1,2})[.月](\d{1,2})(?:日)?/.exec(f);                         // 8.31 / 08.31 / 8月31日
+  if(m) return m[1].padStart(2,'0')+'.'+m[2].padStart(2,'0');
+  return '';
+}
+function fileLabel(r){                                    // 文件名 → 原名 或 代码·日期
+  const f = r && r.文件;
+  if(!ANA.on || !f) return f || '';
+  const code = SUP_CODE[fileToSup(f)] || fileToSup(f);
+  const d = fileDateOf(f);
+  return d ? code+' · '+d : code;
+}
+function srcLabelMasked(r){                               // 来源表标签：仅同名冲突时含供应商，需掩码
+  if(!ANA.on) return srcLabelOf(r);
+  const s = String((r&&r.来源表名)||'');
+  return srcClash(s) ? (supLabel(supOf(r))+' · '+s) : s;
+}
 const $ = s => document.querySelector(s);
 const state = {file:'', src:'', country:'', head:'', tail:'', goods:'', tax:'', cur:'', q:'', zip:'', view:'table'};
 
@@ -538,9 +596,23 @@ function zipHint(d){
 }
 
 /* 初始化选项 */
+let _files = [];
+function updateDataSrc(){                              // 头部「数据源」图例，随文件/脱敏联动
+  $('#data-src').textContent = !ANA.on
+    ? (state.file || '全部数据源')
+    : (state.file ? fileLabel({文件:state.file, 供应商代码:fileToSup(state.file)}) : '全部数据源');
+}
+function fillFileOptions(){                            // 供应商文件下拉：value 用原名、展示按脱敏
+  const s = $('#f-file'); const prev = s.value;
+  s.innerHTML = '<option value="">全部文件</option>';
+  _files.forEach(f=>{ const o=document.createElement('option'); o.value=f;
+    o.textContent = ANA.on ? (fileLabel({文件:f, 供应商代码:fileToSup(f)})||f) : f;
+    s.appendChild(o); });
+  if([...s.options].some(o=>o.value===prev)) s.value = prev;
+}
 function init(){
   const uni = (arr)=>[...new Set(arr.filter(v=>v!==null&&v!==undefined&&v!==''))].sort((a,b)=>a.localeCompare(b,'zh'));
-  const files = uni(DATA.map(r=>r.文件));
+  _files = uni(DATA.map(r=>r.文件));
   const srcsAll = uni(DATA.map(srcKeyOf));
   const countries = uni(DATA.map(r=>r.国家));
   const heads = uni(DATA.map(r=>splitMode(r.运输方式)[0]));
@@ -548,7 +620,8 @@ function init(){
   const goods = uni(DATA.map(r=>r.货物类型));
   const curs = uni(DATA.map(r=>curOf(r)));
   const fill=(id,arr)=>{const s=$(id);arr.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o)})};
-  fill('#f-file',files); updateSrcs(); fill('#f-country',countries); fill('#f-head',heads); fill('#f-tail',tails); fill('#f-goods',goods); fill('#f-cur',curs);
+  fillFileOptions(); updateSrcs(); fill('#f-country',countries); fill('#f-head',heads); fill('#f-tail',tails); fill('#f-goods',goods); fill('#f-cur',curs);
+  updateDataSrc();
 
   /* 统计 */
   const chSet = new Set(DATA.map(r=>r.渠道名称));
@@ -645,7 +718,7 @@ function updateSrcs(){
   /* 按「供应商│来源表」复合身份去重；同名跨供应商时标签补「供应商 · 表名」 */
   const seen = new Map();
   DATA.filter(r=>!state.file || r.文件===state.file)
-      .forEach(r=>{const k=srcKeyOf(r); if(!seen.has(k)) seen.set(k, srcLabelOf(r));});
+      .forEach(r=>{const k=srcKeyOf(r); if(!seen.has(k)) seen.set(k, srcLabelMasked(r));});
   [...seen.entries()].sort((a,b)=>a[1].localeCompare(b[1],'zh'))
       .forEach(([k,label])=>{const o=document.createElement('option');o.value=k;o.textContent=label;sel.appendChild(o)});
   if([...sel.options].some(o=>o.value===prev)){ sel.value = prev; }
@@ -711,7 +784,7 @@ function emptyHtml(){
 function resetAll(){
   ['file','src','country','head','tail','goods','tax','cur','zip'].forEach(k=>{state[k]='';});
   state.q='';
-  $('#f-file').value='';updateSrcs();$('#f-country').value='';$('#f-head').value='';$('#f-tail').value='';$('#f-goods').value='';$('#f-tax').value='';$('#f-cur').value='';$('#f-q').value='';
+  $('#f-file').value='';updateSrcs();updateDataSrc();$('#f-country').value='';$('#f-head').value='';$('#f-tail').value='';$('#f-goods').value='';$('#f-tax').value='';$('#f-cur').value='';$('#f-q').value='';
   $('#f-zip').value=''; zipHint('');
   render(filter());
 }
@@ -766,7 +839,7 @@ function cardHtml(rows, offset){
         <div>
           <div class="name">${esc(r.渠道名称)}</div>
           <div class="tags">
-            <span class="tag">${esc(r.文件||'')}</span>
+            <span class="tag">${esc(fileLabel(r))}</span>
             <span class="tag">${esc(h||'—')} / ${esc(t||'—')}</span>
             <span class="tag">${esc(r.国家||'—')}</span>
             <span class="tag">${esc(r.货物类型||'—')}</span>
@@ -778,7 +851,7 @@ function cardHtml(rows, offset){
         <span class="line-tag">${esc(r.区间||'')}</span>
       </div>
       <div class="meta">
-        <div class="mi"><span class="k">来源</span><span class="v">${esc(srcLabelOf(r))} R${esc(r.来源行号??'')}</span></div>
+        <div class="mi"><span class="k">来源</span><span class="v">${esc(srcLabelMasked(r))} R${esc(r.来源行号??'')}</span></div>
         <div class="mi"><span class="k">发布</span><span class="v">${esc(pubDateOf(r))}</span></div>
         <div class="mi"><span class="k">时效</span><span class="v">${esc(r.时效||'—')}</span></div>
         <div class="mi"><span class="k">目的地</span><span class="v">${esc(dest)}</span></div>
@@ -788,6 +861,8 @@ function cardHtml(rows, offset){
         ${r.开始邮编?`<div class="mi"><span class="k">开始邮编</span><span class="v">${esc(r.开始邮编)}</span></div>`:''}
         ${r.结束邮编?`<div class="mi"><span class="k">结束邮编</span><span class="v">${esc(r.结束邮编)}</span></div>`:''}
         ${r.体积重量比?`<div class="mi"><span class="k">重比</span><span class="v">1:${esc(r.体积重量比)}</span></div>`:''}
+        ${sheetHasNotes(r.供应商代码,(r.来源表名||'').trim())
+          ? `<button class="notes-link" data-sup="${esc(r.供应商代码||'')}" data-sheet="${esc((r.来源表名||'').trim())}" title="查看渠道说明">渠道说明</button>` : ''}
       </div>
       <div class="price">
         <div class="pl">PRICE TIERS · ${esc(curSym(r))} 每 ${esc(r.单位||'—')}</div>
@@ -807,26 +882,46 @@ const TBL_INFO_COLS = [['来源',92],['渠道名称',156],['运输方式',92],['
      · 前导缩进 + 编号      → 子条款（缩进）
      · 跨条编号回跳变小（如 9→1）→ 新段落（分隔线），对应源表渠道/赔偿/免责各段。 */
 function firstNum(t){ const m = /^\s*[（(]?(\d{1,3})/.exec(t); return m ? +m[1] : Infinity; }
+// 单次全局正则：从左到右不重叠匹配，避免逐条替换产生嵌套 span。
+// 加价 +X 优先整体标金额色；纯 KG/CBM 标量纲色；元/RMB/单价 与「超过N个」标金额色。
+// 高亮收费信息（统一蓝色）：收费词引导(按/加收/赔/最低)、加价 +X、币种金额(元/RMB/人民币/USD/￥/¥)、单价(数字/单位)、CBM 体积绿。
+const HL_RE = /(按|加收|赔|最低)\s*(?:\d+(?:\.\d+)?\s*(?:元|人民币|RMB|USD|￥|¥){0,2}|(?:人民币|RMB|USD|￥|¥)\s*\d+(?:\.\d+)?)(?:\s*\/\s*(?:件|票|箱|张|个|托|柜|方|KG|kg|Kg))?|(\+\d+(?:\.\d+)?(?!\*)(?!\s*(?:天|日|小时))(?:\s*\/\s*(?:KG|kg|Kg|CBM|cbm|件|票|箱|张|个|托|柜|方))?)|(\d+(?:\.\d+)?\s*(?:元|人民币|RMB|USD|￥|¥)(?:\s*\/\s*(?:件|票|箱|张|个|托|柜|方|KG|kg|Kg|CBM|cbm))?)|((?:人民币|RMB|USD|￥|¥)\s*\d+(?:\.\d+)?(?:\s*\/\s*(?:件|票|箱|张|个|托|柜|方|KG|kg|Kg|CBM|cbm))?)|(\d+(?:\.\d+)?\s*\/\s*(?:KG|kg|Kg|CBM|cbm|件|票|箱|张|个|托|柜|方))|(\d+(?:\.\d+)?\s*CBM)/gi;
+function hlNote(t){                      // 高亮收费关键信息（esc 之后的安全文本上替换）
+  return t.replace(HL_RE, (m,p1,p2,p3,p4,p5,p6)=>{
+    const cls = p6 && !p1 ? 'hl-cbm' : 'hl-money';
+    return `<span class="${cls}">${m}</span>`;
+  });
+}
+const CIRCLED = ['','\u2460','\u2461','\u2462','\u2463','\u2464','\u2465','\u2466','\u2467','\u2468','\u2469',
+  '\u246a','\u246b','\u246c','\u246d','\u246e','\u246f','\u2470','\u2471','\u2472','\u2473'];
 function renderNoteItem(it){
   const lines = it.text.split('\n').filter(l => l.trim() !== '');
-  if(lines.length <= 1) return esc(it.text.trimStart() || it.text);
+  if(lines.length <= 1) return hlNote(esc(it.text.trimStart() || it.text));
+  let inSub = false;                                 // 小节标题作用域：其下顶格编号行也视为子条款
   return lines.map(ln => {
     const body = ln.trimStart();
     const hasNum = /^[（(]?\d{1,3}\s*[)）】.、]/.test(body);
-    const isSub = hasNum && ln !== body;              // 前导空格+编号 = 子条款
     const isHead = hasNum && /[:：]\s*$/.test(body.trimEnd());  // 编号+冒号结尾 = 小节标题
+    if(isHead) inSub = true;
+    const isSub = (hasNum && ln !== body) || (hasNum && inSub && !isHead);  // 前导空格 或 标题下顶格编号
+    if(!isHead && !isSub) inSub = false;             // 附注类行结束标题作用域
     const cls = isHead ? 'nh-h' : isSub ? 'nh-s' : hasNum ? 'nh-p' : 'nh-note';
-    return `<div class="${cls}">${esc(body)}</div>`;
+    let disp = body;
+    if(isSub){                    // 子条款编号换带圈数字，与一级 8) 9) 区分
+      const m = body.match(/^[（(]?(\d{1,3})\s*[)）】.、]\s*/);
+      if(m) disp = (CIRCLED[+m[1]] || '('+m[1]+')') + ' ' + body.slice(m[0].length);
+    }
+    return `<div class="${cls}">${hlNote(esc(disp))}</div>`;
   }).join('');
 }
-function notesHtml(sup, sheet){
-  const ns = window.__FBA_NOTES__ || {};
-  const items = (ns[sup] || {})[sheet] || [];
-  if(!items.length) return '';
-  const isNum = it => /^\s*[（(]?\d{1,3}\s*[)）】.、]/.test(it.text);
-  const nums = items.filter(isNum);
-  if(!nums.length) return '';
-  // 顺序一律按源表原始排序（红条款不做置顶，标红红色高亮即自然突出）
+const noteIsNum = it => /^\s*[（(]?\d{1,3}\s*[)）】.、]/.test((it && it.text) || '');
+function sheetHasNotes(sup, sheet){
+  return (((window.__FBA_NOTES__ || {})[sup] || {})[sheet] || []).some(noteIsNum);
+}
+function notesListItems(arr){
+  const isNum = noteIsNum;
+  const nums = arr.filter(isNum);
+  // 依源表原始排序展示（红条款不做置顶，标红高亮即自然突出）
   let html = '', cur = 0;
   for(const it of nums){
     const n = firstNum(it.text);
@@ -834,8 +929,42 @@ function notesHtml(sup, sheet){
     html += `<li${it.red?' class="nh-red"':''}>${renderNoteItem(it)}</li>`;
     cur = Math.max(cur, n);
   }
-  return `<div class="notes-host closed"><div class="nh-title"><span class="caret">▾</span>渠道说明 <span class="nh-count">条款 ${nums.length} 条</span></div><ul class="nh-list">${html}</ul></div>`;
+  return { nums, html };
 }
+function notesHtml(sup, sheet){
+  const ns = window.__FBA_NOTES__ || {};
+  const arr = (ns[sup] || {})[sheet] || [];
+  const { nums, html } = notesListItems(arr);
+  if(!nums.length) return '';
+  const pop = '<button class="nh-pop" title="放大查看" aria-label="放大查看渠道说明">' +
+    '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
+    'stroke-linecap="round" stroke-linejoin="round"><path d="M20 13V4h-9"/><path d="M4 11v9h9"/>' +
+    '<path d="M4 4l16 16"/></svg></button>';
+  return `<div class="notes-host closed" data-sup="${esc(sup)}" data-sheet="${esc(sheet)}">
+    <div class="nh-title"><span class="caret">▾</span>渠道说明 <span class="nh-count">条款 ${nums.length} 条</span>${pop}</div>
+    <ul class="nh-list">${html}</ul></div>`;
+}
+
+/* 放大弹窗：居中展示渠道说明，大字号舒适阅读（Esc / 遮罩 / ✕ 关闭） */
+let _nm = null;
+function openNotesModal(sup, sheet){
+  const arr = ((window.__FBA_NOTES__ || {})[sup] || {})[sheet] || [];
+  const { nums, html } = notesListItems(arr);
+  if(!nums.length) return;
+  closeNotesModal();
+  _nm = document.createElement('div');
+  _nm.className = 'nm-mask';
+  _nm.innerHTML =
+    `<div class="nm-box" role="dialog" aria-modal="true">
+      <div class="nm-head"><span>${esc(supLabel(sup))} · ${esc(sheet)} · 渠道说明 <span class="nh-count">${nums.length} 条</span></span>
+      <button class="nm-close" aria-label="关闭">✕</button></div>
+      <div class="nm-body"><ul class="nh-list">${html}</ul></div></div>`;
+  document.body.appendChild(_nm);
+  _nm.addEventListener('click', e => { if(e.target === _nm) closeNotesModal(); });
+  _nm.querySelector('.nm-close').addEventListener('click', closeNotesModal);
+}
+function closeNotesModal(){ if(_nm){ _nm.remove(); _nm = null; } }
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && _nm) closeNotesModal(); });
 
 /* 生成单个分组的表格。懒渲染 —— 仅在分组展开时调用，收起态一个表格 DOM 都不产生 */
 function buildTableHtml(gk){
@@ -855,7 +984,7 @@ function buildTableHtml(gk){
       return (v===undefined||v===null) ? '<td class="dash">—</td>' : `<td class="num" title="${esc(fmtFull(v))}">${fmtPrice(v)}</td>`;
     }).join('');
     return `<tr>
-        <td class="c-src"><span class="cl">${esc(srcLabelOf(r))} R${esc(r.来源行号??'')}</span></td>
+        <td class="c-src"><span class="cl">${esc(srcLabelMasked(r))} R${esc(r.来源行号??'')}</span></td>
         <td class="c-name" data-full="${esc(r.渠道名称)}"><span class="cl">${esc(r.渠道名称)}</span></td>
         <td class="c-mode"><span class="cl">${esc(r.运输方式||'—')}</span></td>
         <td><span class="cl">${esc(r.交货地||'—')}</span></td>
@@ -908,7 +1037,7 @@ function renderTable(rows){
     return `<div class="tgroup${closedCls}" data-gk="${esc(k)}" style="animation-delay:${Math.min(gi*60,300)}ms">
       <div class="tg-head">
         <span class="caret">▾</span>
-        <span class="tg-title"><span class="ln">${esc(g[0].文件||'')}</span> · ${esc(line)} · ${esc(zone)}</span>
+        <span class="tg-title"><span class="ln">${esc(fileLabel(g[0]))}</span> · ${esc(line)} · ${esc(zone)}</span>
         <span class="tg-meta">${g.length} 条 · 币种 ${esc(curOf(g[0]))} · 单位 ${esc(unit)} · 发布 ${esc(pubDateOf(g[0]))}${allClosed?`<span class="tg-exp">点击展开</span>`:''}</span>
       </div>
       ${notesHtml(g[0].供应商代码, (g[0].来源表名||'').trim())}
@@ -922,9 +1051,17 @@ function renderTable(rows){
   $('#'+ (k==='file'?'f-file':k==='src'?'f-src':k==='country'?'f-country':k==='head'?'f-head':k==='tail'?'f-tail':k==='goods'?'f-goods':k==='cur'?'f-cur':'f-tax'))
     .addEventListener('change',e=>{
       state[k]=e.target.value;
-      if(k==='file') updateSrcs();
+      if(k==='file'){ updateSrcs(); updateDataSrc(); }
       render(filter());
     });
+});
+/* 供应商脱敏开关：切换后刷新全部供应商/文件名展示位 */
+$('#ana').addEventListener('change',e=>{
+  ANA.on = e.target.checked;
+  fillFileOptions();
+  updateSrcs();
+  updateDataSrc();
+  render(filter());
 });
 $('#f-q').addEventListener('input',e=>{state.q=e.target.value.trim();debounceRender();});
 $('#f-zip').addEventListener('input',e=>{
@@ -1000,8 +1137,21 @@ document.addEventListener('click',(e)=>{
   if(!g.classList.contains('closed')) scheduleOverflow();
 });
 
-/* 本表报价说明面板：点击标题展开/收起（独立于分组，事件委托） */
+/* 本表报价说明面板：标题展开/收起，右侧图标放大弹窗（事件委托） */
 document.addEventListener('click',(e)=>{
+  const pop = e.target.closest('.nh-pop');
+  if(pop){
+    e.stopPropagation();
+    const host = pop.closest('.notes-host');
+    openNotesModal(host.dataset.sup, host.dataset.sheet);
+    return;
+  }
+  const nb = e.target.closest('.notes-link');
+  if(nb){
+    e.stopPropagation();
+    openNotesModal(nb.dataset.sup, nb.dataset.sheet);
+    return;
+  }
   const t = e.target.closest('.nh-title');
   if(!t) return;
   const n = t.closest('.notes-host');
