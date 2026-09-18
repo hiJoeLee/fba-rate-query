@@ -409,6 +409,9 @@
       <div class="fitem"><label>货币</label>
         <select id="f-cur"><option value="">全部币种</option></select>
       </div>
+      <div class="fitem"><label>交货仓库</label>
+        <select id="f-wh"><option value="">全部仓库</option></select>
+      </div>
       <div class="fitem search">
         <div class="pair">
           <div><label>邮编查询（客户邮编）</label>
@@ -604,7 +607,7 @@ function srcLabelMasked(r){                               // 来源表标签：�
   return srcClash(s) ? (supLabel(supOf(r))+' · '+s) : s;
 }
 const $ = s => document.querySelector(s);
-const state = {file:'', src:'', country:'', head:'', tail:'', goods:'', tax:'', cur:'', q:'', zip:'', view:'table'};
+const state = {file:'', src:'', country:'', head:'', tail:'', goods:'', tax:'', cur:'', wh:'', q:'', zip:'', view:'table'};
 
 /* ── 渲染性能五条（实测：filter() 仅 0.6ms，瓶颈在「每次输入都全量重建 DOM + 强制布局 193ms」）──
    1) 分组懒渲染：收起的分组不生成 <tbody>，点击展开时才现场生成 → 收起态零布局成本；
@@ -685,6 +688,8 @@ function init(){
   const curs = uni(DATA.map(r=>curOf(r)));
   const fill=(id,arr)=>{const s=$(id);arr.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o)})};
   fillFileOptions(); updateSrcs(); fill('#f-country',countries); fill('#f-head',heads); fill('#f-tail',tails); fill('#f-goods',goods); fill('#f-cur',curs);
+  /* 交货仓库：扬程=收货区域（华东区域…），皓鹏/蓝图梦=出口仓 */
+  fill('#f-wh', uni(DATA.map(r=>r.交货仓库)));
   updateDataSrc();
 
   /* 统计 */
@@ -799,6 +804,8 @@ function filter(){
     if(state.tail && t!==state.tail) return false;
     if(state.goods && r.货物类型!==state.goods) return false;
     if(state.tax && (r.是否包税||'')!==state.tax) return false;
+    /* 交货仓库：扬程为「收货区域」（华东区域/华南区域…），价格随它变；皓鹏/蓝图梦为出口仓。精确匹配。 */
+    if(state.wh && (r.交货仓库||'')!==state.wh) return false;
     if(state.cur && curOf(r)!==state.cur) return false;
     if(state.zip && !zipHit(r, state.zip)) return false;
     if(state.q){
@@ -818,7 +825,7 @@ function render(rows){
 
 /* 已生效筛选条件数：10 个筛选项任意一个非空即计 1 */
 function activeCount(){
-  return ['file','src','country','head','tail','goods','tax','cur','q','zip'].filter(k=>state[k]!=='' && state[k]!=null).length;
+  return ['file','src','country','head','tail','goods','tax','cur','wh','q','zip'].filter(k=>state[k]!=='' && state[k]!=null).length;
 }
 /* 折叠按钮文案 + 「N 项生效」胶囊（仅折叠时展示，防止展开态冗余） */
 function updateToggle(){
@@ -846,9 +853,9 @@ function emptyHtml(){
     + '</div>';
 }
 function resetAll(){
-  ['file','src','country','head','tail','goods','tax','cur','zip'].forEach(k=>{state[k]='';});
+  ['file','src','country','head','tail','goods','tax','cur','wh','zip'].forEach(k=>{state[k]='';});
   state.q='';
-  $('#f-file').value='';updateSrcs();updateDataSrc();$('#f-country').value='';$('#f-head').value='';$('#f-tail').value='';$('#f-goods').value='';$('#f-tax').value='';$('#f-cur').value='';$('#f-q').value='';
+  $('#f-file').value='';updateSrcs();updateDataSrc();$('#f-country').value='';$('#f-head').value='';$('#f-tail').value='';$('#f-goods').value='';$('#f-tax').value='';$('#f-cur').value='';$('#f-wh').value='';$('#f-q').value='';
   $('#f-zip').value=''; zipHint('');
   render(filter());
 }
@@ -1118,8 +1125,8 @@ function renderTable(rows){
   scheduleOverflow();
 }
 
-['file','src','country','head','tail','goods','tax','cur'].forEach(k=>{
-  $('#'+ (k==='file'?'f-file':k==='src'?'f-src':k==='country'?'f-country':k==='head'?'f-head':k==='tail'?'f-tail':k==='goods'?'f-goods':k==='cur'?'f-cur':'f-tax'))
+['file','src','country','head','tail','goods','tax','cur','wh'].forEach(k=>{
+  $('#'+ (k==='file'?'f-file':k==='src'?'f-src':k==='country'?'f-country':k==='head'?'f-head':k==='tail'?'f-tail':k==='goods'?'f-goods':k==='cur'?'f-cur':k==='wh'?'f-wh':'f-tax'))
     .addEventListener('change',e=>{
       state[k]=e.target.value;
       if(k==='file'){ updateSrcs(); updateDataSrc(); }
