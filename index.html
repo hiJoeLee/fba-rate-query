@@ -954,7 +954,7 @@ function cardHtml(rows, offset){
 }
 
 /* 信息列固定宽，价格列均分剩余空间（table-layout:fixed）—— 提为常量，避免每个分组重复构建 */
-const TBL_INFO_COLS = [['来源',92],['渠道名称',156],['运输方式',92],['可收货城市',190],['国家',72],['货型',62],['包税',52],['货币',56],['目的地',124],['城市',72],['开始邮编',68],['结束邮编',68],['时效',144]];
+const TBL_INFO_COLS = [['来源',92],['渠道名称',156],['运输方式',92],['可收货城市',190],['交货仓库',124],['国家',72],['货型',62],['包税',52],['货币',56],['目的地',124],['城市',72],['开始邮编',68],['结束邮编',68],['时效',144]];
 
 /* 本表报价说明（备注层）：查 __FBA_NOTES__[供应商][来源表名]。
    只保留源表自带编号的条款（无编号碎片=目的地/仓库/促销一律不进——目的地本就在价格表列）。
@@ -1069,6 +1069,7 @@ function buildTableHtml(gk){
         <td class="c-name" data-full="${esc(r.渠道名称)}"><span class="cl">${esc(r.渠道名称)}</span></td>
         <td class="c-mode"><span class="cl">${esc(r.运输方式||'—')}</span></td>
         <td data-full="${esc((r.可收货城市||[]).join('/'))}"><span class="cl">${esc((r.可收货城市||[]).join('/')||'—')}</span></td>
+        <td data-full="${esc(r.交货仓库||'')}"><span class="cl">${esc(r.交货仓库||'—')}</span></td>
         <td><span class="cl">${esc(r.国家||'—')}</span></td>
         <td><span class="cl">${esc(r.货物类型||'—')}</span></td>
         <td>${tax}</td>
