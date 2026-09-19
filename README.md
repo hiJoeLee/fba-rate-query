@@ -10,8 +10,7 @@
 
 ## 本仓库主要内容
 
-- `fba-rate-query.html`：查询页面（主交付物）
-- `index.html`：根路径入口（与主文件内容一致）
+- `index.html`：查询页面（**唯一交付物**，同时是 GitHub Pages 根路径入口）
 - `docs/`：项目文档（`README.md`、`DECISION_LOG.md`）
 
 > 仓库不包含拆解框架、源表与内部数据，避免误外发。
