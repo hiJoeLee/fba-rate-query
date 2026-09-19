@@ -796,16 +796,25 @@ function updateSrcs(){
   else { state.src=''; sel.value=''; }
 }
 
+function whAtoms(v){
+  /* 「交货仓库」原文 → **最小收货单位**（2026-09-19，用户指出下拉里"同个区域重复拆成"）。
+     原文形如 `华北/华南/福建区域` —— `区域` 是**整个枚举的后缀**（"华北、华南、福建 三个区域"），
+     不是「福建区域」这个专名，故拆分时统一剥掉 → 得到 华东 / 华南 / 华北 / 福建 四个干净单位。
+     皓鹏 `HP深圳仓`、蓝图梦 `龙岗总仓/福永仓/广州仓/义乌仓` 同理拆成具体收货仓。
+     ★副作用（正是想要的）：`华北/华南/福建区域` 与 `华南/华北/福建区域` 两种书写归一成同一组
+       原子 —— 本项目最初「下拉选项重复」的问题在此根治。 */
+  return String(v||'').split('/').map(s=>s.trim().replace(/区域$/,'')).filter(Boolean);
+}
 function updateWarehouses(){
   /* 交货仓库级联（2026-09-19）：取值是**供应商自定义词汇**（扬程「华东区域」= 抽象区域划分；
      皓鹏「HP深圳仓」、蓝图梦「龙岗总仓/福永仓/广州仓/义乌仓」= 真实收货仓），跨家不可比。
      故只在该供应商文件下开放 —— 未选文件即隐藏并清空，避免把 10 个不同语义的取值混成一锅。 */
   const item = $('#wh-item'), sel = $('#f-wh'), prev = sel.value;
-  sel.innerHTML = '<option value="">全部仓库</option>';
+  sel.innerHTML = '<option value="">全部</option>';
   if(!state.file){ item.style.display='none'; state.wh=''; sel.value=''; return; }
   item.style.display='';
   const vals = [...new Set(DATA.filter(r=>r.文件===state.file)
-              .map(r=>r.交货仓库).filter(v=>v!==null&&v!==undefined&&v!==''))];
+              .flatMap(r=>whAtoms(r.交货仓库)))];
   vals.sort((a,b)=>a.localeCompare(b,'zh'));
   vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o)});
   if([...sel.options].some(o=>o.value===prev)) sel.value = prev;
@@ -832,9 +841,11 @@ function filter(){
       if(state.city===OTHER_CITY){ if(!cs.some(c=>CITY_LIST.indexOf(c)<0)) return false; }
       else if(cs.indexOf(state.city)<0) return false;
     }
-    /* 交货仓库（2026-09-19）：**精确匹配**（它是供应商原文，没有「包含」的概念）。
+    /* 交货仓库（2026-09-19）：按**最小收货单位包含匹配**（`whAtoms` 拆分后比对）。
+       ★**不是**精确匹配 —— 供应商把多个区域写进同一条（`华北/华南/福建区域`），选「华东」
+       必须命中所有含华东的记录（含 `华东/华南区域`），否则就是**静默漏价**。
        只在所选文件下开放（见 `updateWarehouses`），故与 file 条件天然自洽。 */
-    if(state.wh && (r.交货仓库||'')!==state.wh) return false;
+    if(state.wh && whAtoms(r.交货仓库).indexOf(state.wh)<0) return false;
     if(state.cur && curOf(r)!==state.cur) return false;
     if(state.zip && !zipHit(r, state.zip)) return false;
     if(state.q){
