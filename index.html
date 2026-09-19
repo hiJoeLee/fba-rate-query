@@ -388,6 +388,9 @@
       <div class="fitem"><label>供应商文件</label>
         <select id="f-file"><option value="">全部文件</option></select>
       </div>
+      <div class="fitem" id="wh-item" style="display:none"><label>交货仓库</label>
+        <select id="f-wh"><option value="">全部仓库</option></select>
+      </div>
       <div class="fitem"><label>来源表</label>
         <select id="f-src"><option value="">全部来源</option></select>
       </div>
@@ -601,7 +604,7 @@ const $ = s => document.querySelector(s);
    （不用中文「其他」做 value，避免与城市名撞）。 */
 const CITY_LIST = ["广州", "深圳", "东莞", "厦门", "福州", "义乌", "宁波", "上海", "杭州", "台州", "武汉", "郑州", "青岛", "泉州", "中山"];
 const OTHER_CITY = '__other__';
-const state = {file:'', src:'', country:'', head:'', tail:'', goods:'', tax:'', cur:'', city:'', q:'', zip:'', view:'table'};
+const state = {file:'', src:'', country:'', head:'', tail:'', goods:'', tax:'', cur:'', city:'', wh:'', q:'', zip:'', view:'table'};
 
 /* ── 渲染性能五条（实测：filter() 仅 0.6ms，瓶颈在「每次输入都全量重建 DOM + 强制布局 193ms」）──
    1) 分组懒渲染：收起的分组不生成 <tbody>，点击展开时才现场生成 → 收起态零布局成本；
@@ -681,7 +684,7 @@ function init(){
   const goods = uni(DATA.map(r=>r.货物类型));
   const curs = uni(DATA.map(r=>curOf(r)));
   const fill=(id,arr)=>{const s=$(id);arr.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;s.appendChild(o)})};
-  fillFileOptions(); updateSrcs(); fill('#f-country',countries); fill('#f-head',heads); fill('#f-tail',tails); fill('#f-goods',goods); fill('#f-cur',curs);
+  fillFileOptions(); updateSrcs(); updateWarehouses(); fill('#f-country',countries); fill('#f-head',heads); fill('#f-tail',tails); fill('#f-goods',goods); fill('#f-cur',curs);
   /* 可收货城市（2026-09-19）：受控词表 15 城 + 「其他」。
      ★不能像其它筛选器那样 `uni(DATA.map(...))` —— 那会只列出**数据里出现过**的城市，
      而设计稿已定「台州/武汉/福州/郑州（名单内、三家无仓）**保留选项、选了出空结果**」：
@@ -793,6 +796,22 @@ function updateSrcs(){
   else { state.src=''; sel.value=''; }
 }
 
+function updateWarehouses(){
+  /* 交货仓库级联（2026-09-19）：取值是**供应商自定义词汇**（扬程「华东区域」= 抽象区域划分；
+     皓鹏「HP深圳仓」、蓝图梦「龙岗总仓/福永仓/广州仓/义乌仓」= 真实收货仓），跨家不可比。
+     故只在该供应商文件下开放 —— 未选文件即隐藏并清空，避免把 10 个不同语义的取值混成一锅。 */
+  const item = $('#wh-item'), sel = $('#f-wh'), prev = sel.value;
+  sel.innerHTML = '<option value="">全部仓库</option>';
+  if(!state.file){ item.style.display='none'; state.wh=''; sel.value=''; return; }
+  item.style.display='';
+  const vals = [...new Set(DATA.filter(r=>r.文件===state.file)
+              .map(r=>r.交货仓库).filter(v=>v!==null&&v!==undefined&&v!==''))];
+  vals.sort((a,b)=>a.localeCompare(b,'zh'));
+  vals.forEach(v=>{const o=document.createElement('option');o.value=v;o.textContent=v;sel.appendChild(o)});
+  if([...sel.options].some(o=>o.value===prev)) sel.value = prev;
+  else { state.wh=''; sel.value=''; }
+}
+
 function filter(){
   return DATA.filter(r=>{
     if(state.file && r.文件!==state.file) return false;
@@ -813,6 +832,9 @@ function filter(){
       if(state.city===OTHER_CITY){ if(!cs.some(c=>CITY_LIST.indexOf(c)<0)) return false; }
       else if(cs.indexOf(state.city)<0) return false;
     }
+    /* 交货仓库（2026-09-19）：**精确匹配**（它是供应商原文，没有「包含」的概念）。
+       只在所选文件下开放（见 `updateWarehouses`），故与 file 条件天然自洽。 */
+    if(state.wh && (r.交货仓库||'')!==state.wh) return false;
     if(state.cur && curOf(r)!==state.cur) return false;
     if(state.zip && !zipHit(r, state.zip)) return false;
     if(state.q){
@@ -834,7 +856,7 @@ function render(rows){
 
 /* 已生效筛选条件数：10 个筛选项任意一个非空即计 1 */
 function activeCount(){
-  return ['file','src','country','head','tail','goods','tax','cur','city','q','zip'].filter(k=>state[k]!=='' && state[k]!=null).length;
+  return ['file','src','country','head','tail','goods','tax','cur','city','wh','q','zip'].filter(k=>state[k]!=='' && state[k]!=null).length;
 }
 /* 折叠按钮文案 + 「N 项生效」胶囊（仅折叠时展示，防止展开态冗余） */
 function updateToggle(){
@@ -862,9 +884,9 @@ function emptyHtml(){
     + '</div>';
 }
 function resetAll(){
-  ['file','src','country','head','tail','goods','tax','cur','city','zip'].forEach(k=>{state[k]='';});
+  ['file','src','country','head','tail','goods','tax','cur','city','wh','zip'].forEach(k=>{state[k]='';});
   state.q='';
-  $('#f-file').value='';updateSrcs();updateDataSrc();$('#f-country').value='';$('#f-head').value='';$('#f-tail').value='';$('#f-goods').value='';$('#f-tax').value='';$('#f-cur').value='';$('#f-city').value='';$('#f-q').value='';
+  $('#f-file').value='';updateSrcs();updateDataSrc();$('#f-country').value='';$('#f-head').value='';$('#f-tail').value='';$('#f-goods').value='';$('#f-tax').value='';$('#f-cur').value='';$('#f-city').value='';updateWarehouses();$('#f-q').value='';
   $('#f-zip').value=''; zipHint('');
   render(filter());
 }
@@ -1136,11 +1158,11 @@ function renderTable(rows){
   scheduleOverflow();
 }
 
-['file','src','country','head','tail','goods','tax','cur','city'].forEach(k=>{
-  $('#'+ (k==='file'?'f-file':k==='src'?'f-src':k==='country'?'f-country':k==='head'?'f-head':k==='tail'?'f-tail':k==='goods'?'f-goods':k==='cur'?'f-cur':k==='city'?'f-city':'f-tax'))
+['file','src','country','head','tail','goods','tax','cur','city','wh'].forEach(k=>{
+  $('#'+ (k==='file'?'f-file':k==='src'?'f-src':k==='country'?'f-country':k==='head'?'f-head':k==='tail'?'f-tail':k==='goods'?'f-goods':k==='cur'?'f-cur':k==='city'?'f-city':k==='wh'?'f-wh':'f-tax'))
     .addEventListener('change',e=>{
       state[k]=e.target.value;
-      if(k==='file'){ updateSrcs(); updateDataSrc(); }
+      if(k==='file'){ updateSrcs(); updateWarehouses(); updateDataSrc(); }
       render(filter());
     });
 });
