@@ -3,3 +3,7 @@
 
 # Local Netlify folder
 .netlify
+
+# Python（tools/ 下有脚本，跑起来会生成字节码；口径与 fba-rate-parser 一致）
+__pycache__/
+*.pyc
