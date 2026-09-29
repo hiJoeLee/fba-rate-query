@@ -14,4 +14,4 @@
 - `docs/`：项目文档（`README.md`、`DECISION_LOG.md`、`渲染基线.md`）
 - `tools/`：**只读**辅助脚本（对话式查价 `chat_query.py`），见 [docs/README.md](docs/README.md) 的「tools/ 辅助脚本」
 
-> 仓库不包含拆解框架、源表与内部数据，避免误外发。并入器与终检闸门在另一仓 `fba-rate-parser/tools/`。
+> 仓库不包含拆解框架、源表与内部数据，避免误外发。并入器与终检闸门在另一仓 `parser/tools/`。

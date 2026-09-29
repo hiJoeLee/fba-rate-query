@@ -4,7 +4,9 @@
 
 ## 这是什么
 把各供应商的运价数据做成**一个单文件页面** `index.html`（本地双击即可用，线上走 GitHub Pages）。
-数据不是手写的，由**解析端**产出 → `~/Documents/trae_projects/fba-rate-parser/`（那边根目录也有 `AGENTS.md`）。
+数据不是手写的，由**解析端**产出 → `~/Documents/trae_projects/fba-rate/parser/`（那边根目录也有 `AGENTS.md`）。
+
+> **2026-09-29 目录重组**：本仓库现在 `~/Documents/trae_projects/fba-rate/query/`，与解析端同处一个父目录 `fba-rate/`、共用一个工作区（原来是两个独立工作区）。**git 仓库仍各自独立** —— 远端名仍为 `fba-rate-query`，线上网址也不变。
 
 ## 开工前按顺序读
 1. `docs/README.md` —— 项目定位、数据结构、字段字典、页面结构、更新流程

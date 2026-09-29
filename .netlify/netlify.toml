@@ -7,7 +7,7 @@ redirects = []
 [functions."*"]
 
 [build]
-publish = "/Users/Zhuanz1/Documents/trae_projects/fba-rate-query"
+publish = "/Users/Zhuanz1/Documents/trae_projects/fba-rate/query"
 publishOrigin = "default"
 
 [build.environment]
