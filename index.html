@@ -1193,11 +1193,23 @@ function admFmtFormula(rule){
   if(t==='null') return '已含单价，不参与计价';
   return esc(rule.source||'');
 }
+/* 触发条件中文化（面向市场非技术人员）：优先规则的 desc（中文），无 desc 时字段/操作符映射 */
+const TRIG_FIELD_CN={ 'goods.weight_kg':'单件重量','goods.length_cm':'单边长度','goods.width_cm':'单边宽度',
+  'goods.height_cm':'单边高度','goods.item_names':'货物名称','order.service':'服务项',
+  'order.declared_value':'申报价值','order.channel':'渠道' };
+const TRIG_OP_CN={ 'contains':'包含','between':'在区间','>':'大于','>=':'大于等于','<':'小于','<=':'小于等于',
+  '==':'等于','count_gt':'多于','!=':'不等于' };
 function admFmtTrigger(rule){
   const tr=rule.trigger||{}, cs=tr.conditions||[];
   const parts=cs.map(function(c){
     if(c.status==='manual_check') return '待人工确认：'+esc(c.desc||'');
-    if(c.field) return esc(c.field)+' '+esc(c.op)+' '+esc(typeof c.value==='object'?JSON.stringify(c.value):c.value);
+    if(c.desc) return esc(c.desc);
+    if(c.field){
+      const f=TRIG_FIELD_CN[c.field]||c.field;
+      const o=TRIG_OP_CN[c.op]||c.op;
+      const v=typeof c.value==='object'?(Array.isArray(c.value)?c.value.map(String).join(' 或 '):JSON.stringify(c.value)):c.value;
+      return f+' '+o+' '+esc(v);
+    }
     return esc(c.desc||'');
   });
   return parts.join('；')||'—';
@@ -1280,7 +1292,27 @@ function openAdminDrawer(key){
         +'<span class="alink" onclick="adminRuleEdit(\''+ttl+'\',\''+admEscKey(r.name)+'\')">编辑</span>'
         +(hit?'<span class="alink danger" onclick="adminEffDel(\''+ttl+'\',\''+admEscKey(r.name)+'\')">移除</span>':'')
         +'</div></div>';
-    }).join(''):'<div class="ad-empty">暂无匹配规则，可点击"新增规则"人工补充</div>')+'</div>';
+    }).join(''):'<div class="ad-empty">暂无匹配规则，可点击"新增规则"人工补充</div>')
+    +(function(){
+      /* 人工新增规则（SRC 中不存在的草稿/生效记录）单独列出 */
+      const manualRules=effKey.rules.filter(function(x){ return !rules.some(function(s){ return s.name===x.name; }); });
+      if(!manualRules.length) return '';
+      return '<div class="col-t" style="margin-top:14px">人工新增规则<span class="cnt">'+manualRules.length+' 条</span></div>'
+        +manualRules.map(function(r){
+          return '<div class="ad-rule'+(r.eff?' eff':'')+'"><div class="r-top">'
+            +'<span class="r-name">'+esc(r.name)+'</span>'
+            +'<span class="r-unified">人工新增</span>'
+            +(r.eff?'<span class="badge b-eff">已生效</span>':'<span class="badge b-draft">草稿</span>')
+            +'</div>'
+            +'<div class="r-formula"><b>计费：</b>'+(r.eff?'':'草稿 ')+fmtN(r.amount)+' '+esc(r.unit||'元')+'/'+esc(r.per||'票')+(r.cond?' · '+esc(r.cond):'')+'</div>'
+            +'<div class="r-src">人工新增规则（未在规则库中）</div>'
+            +'<div class="r-ops">'
+            +'<label><input type="checkbox"'+(r.eff?' checked':'')+' onchange="adminEffToggle(\''+ttl+'\',\''+admEscKey(r.name)+'\',this.checked)"> 生效</label>'
+            +'<span class="alink" onclick="adminRuleEdit(\''+ttl+'\',\''+admEscKey(r.name)+'\')">编辑</span>'
+            +'<span class="alink danger" onclick="adminEffDel(\''+ttl+'\',\''+admEscKey(r.name)+'\')">移除</span>'
+            +'</div></div>';
+        }).join('');
+    })()+'</div>';
   $c('adm-drawer').innerHTML=head+'<div class="ad-body">'+left+right+'</div>';
   $c('adm-drawer').style.display='flex';
   $c('adm-mask').style.display='block';
@@ -1307,85 +1339,125 @@ function adminEffToggle(key, name, on){
   }
   eff[key]=list; admEffSet(eff); openAdminDrawer(key);
 }
-function adminRuleEdit(key, name){
+/* ── 规则编辑表单（面向市场非技术人员）────────────────────
+   计费方式下拉联动金额/单位/基准；触发条件用中文快捷短语 + 文本输入，
+   不暴露字段/操作符代码。保存结构 {name,amount,unit,per,cond,billing,eff}。 */
+const ADM_COMPLEX_TYPES={'variants':1,'compound':1,'mixed_tax':1,'rate_tier':1,'tier':1};
+function admBillFrom(hit){
+  if(hit.billing) return hit.billing;
+  if(hit.billType && ADM_COMPLEX_TYPES[hit.billType]) return 'complex';
+  const per=hit.per||'';
+  if(per==='KG') return 'rate_KG';
+  if(per==='CBM') return 'rate_CBM';
+  if(per==='件') return 'fixed_件';
+  return 'fixed_票';
+}
+function admBillLabel(b){
+  return { 'fixed_票':'固定金额 · 每票','fixed_件':'固定金额 · 每件',
+    'rate_KG':'单价 · 每KG','rate_CBM':'单价 · 每CBM','manual':'人工询价',
+    'complex':'复合/多档（只改金额，结构不动）' }[b]||'固定金额 · 每票';
+}
+function renderAdminForm(key, name, isNew){
   const eff=admEffGet();
   const c=ADM_CH[key];
   const list=eff[key]||{sup:c?c.sup:'', rules:[]};
-  let hit=list.rules.filter(function(x){ return x.name===name; })[0];
-  if(!hit){
-    /* 未生效规则也可编辑：先创建草稿记录（eff:false），保存后再勾选生效 */
-    const src=SRC.filter(function(x){ return x.supplier===list.sup && x.name===name; })[0];
-    hit={name:name,
-      amount:(src&&src.formula&&src.formula.params)?(src.formula.params.amount!==undefined?src.formula.params.amount:null):null,
-      unit:(src&&src.formula&&src.formula.params)?(src.formula.params.unit||'元'):'元',
-      per:(src&&src.formula&&src.formula.params)?(src.formula.params.per||'票'):'票',
-      cond:(src?admFmtTrigger(src):''), eff:false};
-    list.rules.push(hit);
-    eff[key]=list; admEffSet(eff);
-  }
-  const ttl=admEscKey(key), nn=admEscKey(name);
-  const form='<div class="ad-form">'
-    +'<div class="f wide"><label>规则名称</label><input id="re_name" value="'+esc(hit.name)+'"></div>'
-    +'<div class="f"><label>金额/单价</label><input id="re_amount" type="number" value="'+(hit.amount===null||hit.amount===undefined?'':hit.amount)+'"></div>'
-    +'<div class="f"><label>单位</label><input id="re_unit" value="'+esc(hit.unit||'元')+'"></div>'
-    +'<div class="f"><label>计费基准</label><input id="re_per" value="'+esc(hit.per||'票')+'"></div>'
-    +'<div class="f wide"><label>触发条件</label><input id="re_cond" value="'+esc(hit.cond||'')+'"></div>'
-    +'<div class="f wide" style="display:flex;gap:10px;margin-top:4px">'
-    +'<span class="alink" onclick="adminEffSave(\''+ttl+'\',\''+nn+'\')">保存</span>'
-    +'<span class="alink" onclick="openAdminDrawer(\''+ttl+'\')">取消</span></div></div>';
-  // 用名字直接匹配卡片
-  Array.prototype.forEach.call(document.querySelectorAll('#adm-drawer .ad-rule'),function(el){
-    const nm=el.querySelector('.r-name');
-    if(nm && nm.textContent===name){
-      el.querySelector('.r-ops').style.display='none';
-      el.insertAdjacentHTML('beforeend', form);
+  let hit=null;
+  if(!isNew){
+    hit=list.rules.filter(function(x){ return x.name===name; })[0];
+    if(!hit){
+      /* 未生效规则也可编辑：先创建草稿记录（eff:false），保存后再勾选生效 */
+      const src=SRC.filter(function(x){ return x.supplier===list.sup && x.name===name; })[0];
+      const fp=src&&src.formula&&src.formula.params;
+      const inner=(fp&&fp.items&&fp.items[0]&&fp.items[0].formula&&fp.items[0].formula.params)||
+                  (fp&&fp.branches&&fp.branches[0]&&fp.branches[0].formula&&fp.branches[0].formula.params)||fp;
+      hit={name:name,
+        amount:fp?(fp.amount!==undefined?fp.amount:(inner?inner.amount:null)):null,
+        unit:(inner&&inner.unit)||'元',
+        per:(inner&&inner.per)||'票',
+        cond:(src?admFmtTrigger(src):''),
+        billType:(src&&src.formula)?src.formula.type:'',
+        eff:false};
+      list.rules.push(hit);
+      eff[key]=list; admEffSet(eff);
     }
-  });
+  }
+  const ttl=admEscKey(key);
+  const bill=isNew?'fixed_票':admBillFrom(hit);
+  const opts=['fixed_票','fixed_件','rate_KG','rate_CBM','manual','complex'].map(function(b){
+    return '<option value="'+b+'"'+(b===bill?' selected':'')+'>'+admBillLabel(b)+'</option>';
+  }).join('');
+  const chips='<div class="chips" style="margin-bottom:6px">'
+    +['单件重量','单边长度','货物名称','品名数','服务项','地址类型'].map(function(t){
+      return '<span class="chip" onclick="rfChip(\''+t+'\')">'+t+'</span>';
+    }).join('')+'</div>';
+  const form='<div class="ad-form">'
+    +'<div class="f wide"><label>规则名称</label><input id="rf_name"'+(isNew?' placeholder="如 超长费"':' value="'+esc(hit.name)+'"')+'></div>'
+    +'<div class="f"><label>计费方式</label><select id="rf_bill" onchange="rfBillChange()">'+opts+'</select></div>'
+    +'<div class="f"><label>金额/单价</label><input id="rf_amt" type="number" placeholder="如 200" value="'+(hit&&hit.amount!==null&&hit.amount!==undefined?hit.amount:'')+'"></div>'
+    +'<div class="f"><label>单位</label><input id="rf_unit" value="'+(hit?esc(hit.unit||'元'):'元')+'"></div>'
+    +'<div class="f"><label>计费基准</label><input id="rf_per" value="'+(hit?esc(hit.per||'票'):'票')+'"></div>'
+    +'<div class="f wide"><label>触发条件（点快捷短语，再改成你的情况）</label>'+chips
+    +'<input id="rf_cond"'+(isNew?' placeholder="如 单件重量 > 22KG，多条用；分隔"':' value="'+esc(hit.cond||'')+'"')+'></div>'
+    +'<div class="f wide" style="display:flex;gap:10px;margin-top:4px">'
+    +'<span class="alink" onclick="adminRuleSave(\''+ttl+'\','+(isNew?'true':'false')+')">保存</span>'
+    +'<span class="alink" onclick="openAdminDrawer(\''+ttl+'\')">取消</span></div></div>';
+  if(isNew){
+    const head=document.querySelector('#adm-drawer .ad-col:last-child .col-t');
+    if(head) head.insertAdjacentHTML('afterend', form);
+  }else{
+    /* 用名字直接匹配卡片 */
+    Array.prototype.forEach.call(document.querySelectorAll('#adm-drawer .ad-rule'),function(el){
+      const nm=el.querySelector('.r-name');
+      if(nm && nm.textContent===name){
+        el.querySelector('.r-ops').style.display='none';
+        el.insertAdjacentHTML('beforeend', form);
+      }
+    });
+  }
 }
-function adminEffSave(key, name){
+function rfBillChange(){
+  const b=$c('rf_bill').value, p=$c('rf_per');
+  if(!p) return;
+  const map={'fixed_票':'票','fixed_件':'件','rate_KG':'KG','rate_CBM':'CBM','manual':'票'};
+  p.value=map[b]||'票';
+}
+function rfChip(t){
+  const cd=$c('rf_cond'); if(!cd) return;
+  cd.value=cd.value?cd.value+'；'+t+' ':'';
+  cd.focus();
+}
+function adminRuleSave(key, isNew){
+  const nm=$c('rf_name'), amt=$c('rf_amt'), u=$c('rf_unit'), p=$c('rf_per'), cd=$c('rf_cond'), bl=$c('rf_bill');
+  if(!nm || !nm.value.trim()) return;
   const eff=admEffGet();
   const list=eff[key]||{sup:(ADM_CH[key]?ADM_CH[key].sup:''), rules:[]};
-  const idx=-1;
-  let i;
-  for(i=0;i<list.rules.length;i++){ if(list.rules[i].name===name) break; }
-  if(i>=list.rules.length) return;
-  const n=$c('re_name'), amt=$c('re_amount'), u=$c('re_unit'), p=$c('re_per'), cd=$c('re_cond');
-  if(n && n.value.trim()) list.rules[i].name=n.value.trim();
-  list.rules[i].amount=(amt&&amt.value!=='')?Number(amt.value):null;
-  if(u) list.rules[i].unit=u.value.trim()||'元';
-  if(p) list.rules[i].per=p.value.trim()||'票';
-  if(cd) list.rules[i].cond=cd.value.trim();
+  const rec={name:nm.value.trim(),
+    amount:amt&&amt.value!==''?Number(amt.value):null,
+    unit:u?u.value.trim()||'元':'元',
+    per:p?p.value.trim()||'票':'票',
+    cond:cd?cd.value.trim():'',
+    billing:bl?bl.value:'fixed_票'};
+  if(isNew){
+    rec.eff=false;
+    list.rules.push(rec);
+  }else{
+    const name=rec.name;
+    const hit=list.rules.filter(function(x){ return x.name===name; })[0];
+    if(!hit){ /* 名称被改时兜底：用旧名称匹配 */
+      const oldName=document.querySelector('#adm-drawer .ad-rule .r-name')?document.querySelector('#adm-drawer .ad-rule .r-name').textContent.trim():null;
+      const hit2=list.rules.filter(function(x){ return x.name===(oldName||name); })[0];
+      if(hit2){ Object.assign(hit2, rec, {eff:hit2.eff}); }
+      else list.rules.push(Object.assign({eff:false},rec));
+    }else{ Object.assign(hit, rec, {eff:hit.eff}); }
+  }
   eff[key]=list; admEffSet(eff); openAdminDrawer(key);
 }
+function adminRuleEdit(key, name){ renderAdminForm(key, name, false); }
+function adminRuleNew(key){ renderAdminForm(key, null, true); }
 function adminEffDel(key, name){
   const eff=admEffGet();
   const list=eff[key]||{sup:(ADM_CH[key]?ADM_CH[key].sup:''), rules:[]};
   list.rules=list.rules.filter(function(x){ return x.name!==name; });
-  eff[key]=list; admEffSet(eff); openAdminDrawer(key);
-}
-function adminRuleNew(key){
-  const ttl=admEscKey(key);
-  const form='<div class="ad-form" id="newform">'
-    +'<div class="f wide"><label>规则名称</label><input id="n_name" placeholder="如 超长费"></div>'
-    +'<div class="f"><label>金额/单价</label><input id="n_amount" type="number" placeholder="如 200"></div>'
-    +'<div class="f"><label>单位</label><input id="n_unit" value="元"></div>'
-    +'<div class="f"><label>计费基准</label><input id="n_per" value="票"></div>'
-    +'<div class="f wide"><label>触发条件</label><input id="n_cond" placeholder="如 单边>120CM"></div>'
-    +'<div class="f wide" style="display:flex;gap:10px"><span class="alink" onclick="adminNewSave(\''+ttl+'\')">保存</span>'
-    +'<span class="alink" onclick="openAdminDrawer(\''+ttl+'\')">取消</span></div></div>';
-  const head=document.querySelector('#adm-drawer .ad-col:last-child .col-t');
-  if(head) head.insertAdjacentHTML('afterend', form);
-}
-function adminNewSave(key){
-  const nm=$c('n_name'), amt=$c('n_amount');
-  if(!nm || !nm.value.trim()) return;
-  const eff=admEffGet();
-  const list=eff[key]||{sup:(ADM_CH[key]?ADM_CH[key].sup:''), rules:[]};
-  list.rules.push({name:nm.value.trim(),
-    amount:amt&&amt.value!==''?Number(amt.value):null,
-    unit:$c('n_unit')?$c('n_unit').value.trim()||'元':'元',
-    per:$c('n_per')?$c('n_per').value.trim()||'票':'票',
-    cond:$c('n_cond')?$c('n_cond').value.trim():'', eff:false});
   eff[key]=list; admEffSet(eff); openAdminDrawer(key);
 }
 /* 货物类型客户语言说明（源自供应商原始价格表分类定义） */
