@@ -637,7 +637,6 @@
       <div class="rstat"><span class="n" id="cs_hit">0</span><span class="l">匹配渠道</span></div>
       <div class="rstat g"><span class="n" id="cs_calc">0</span><span class="l">可计算</span></div>
       <div class="rstat o"><span class="n" id="cs_nq">0</span><span class="l">需单询</span></div>
-      <div class="rstat x"><span class="n" id="cs_mk">0</span><span class="l">含利润加价</span></div>
     </div>
     <div class="cwhy calcn" id="calc-note">附加费规则中部分金额待核（param_pending）/待人工确认（manual_check）：相关渠道标记"需单询"，运营在后台核对确认后自动解锁为可计算。</div>
     <div class="result-wrap" id="calc-list"></div>
@@ -965,7 +964,6 @@ function renderCalc(all, total){
   $c('cs_hit').textContent=total;
   $c('cs_calc').textContent=all.filter(function(q){return !q.nq;}).length;
   $c('cs_nq').textContent=all.filter(function(q){return q.nq;}).length;
-  $c('cs_mk').textContent=all.filter(function(q){return q.main.markup>0;}).length;
   const box=$c('calc-list');
   if(!show.length){ box.innerHTML='<div class="c-emptynote">没有匹配的渠道</div>'; return; }
   box.innerHTML=show.map(function(q,i){
@@ -1021,7 +1019,7 @@ function basisHtml(c, hitTier){
   const pr=Object.keys(c.价格||{});
   const priceHtml=pr.length
     ?'<table class="c-tbl"><colgroup><col style="width:40%"><col style="width:60%"></colgroup>'
-    +'<thead><tr><th>档位</th><th style="text-align:right">单价（'+esc(c.货币||'RMB')+'/'+esc(c.单位||'')+'，括号为利润加价）</th></tr></thead>'
+    +'<thead><tr><th>档位</th><th style="text-align:right">单价（'+esc(c.货币||'RMB')+'/'+esc(c.单位||'')+'）</th></tr></thead>'
     +'<tbody>'+pr.map(function(k){
       const v=c.价格[k];
       const hit=hitTier!==undefined&&k===hitTier;
