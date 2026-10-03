@@ -610,6 +610,7 @@
         <div class="cgrp-t">服务项</div>
         <div class="grow">
           <div class="gitem"><label>报关方式</label><select id="c_svc_mode"><option value="">默认随渠道</option><option value="合并报关">合并报关</option><option value="单独报关">单独报关</option></select><div class="unit">一单一选</div></div>
+          <div class="gitem"><label>是否包税</label><select id="c_tax"><option value="">全部</option><option value="是">包税</option><option value="否">不包税</option></select><div class="unit">过滤包税/不包税渠道</div></div>
         </div>
         <div class="grow">
           <div class="gitem wide"><label>加购服务（可多选）</label><div id="c_svc_chips" class="chips"></div><div class="unit">按规则触发附加费</div></div>
@@ -892,6 +893,7 @@ function resetCalc(){
   const city=$c('c_city'); if(city) city.value='';
   const addr=$c('c_addr'); if(addr) addr.value='FBA';
   const svc=$c('c_svc_mode'); if(svc) svc.value='';
+  const tax=$c('c_tax'); if(tax) tax.value='';
   const chips=$c('c_svc_chips');
   if(chips) chips.querySelectorAll('input').forEach(function(i){
     i.checked=false; const ch=i.closest('.chip'); if(ch) ch.classList.remove('on');
@@ -912,7 +914,7 @@ function calcRun(){
     $c('calc-stats').style.display='none';
     return;
   }
-  const country=cvs('c_cn',''), ctype=cvs('c_type',''), city=cvs('c_city','');
+  const country=cvs('c_cn',''), ctype=cvs('c_type',''), city=cvs('c_city',''), tax=cvs('c_tax','');
   /* 服务：报关方式（单选）+ 加购服务（chips 多选）→ 数组 */
   const svc=[];
   const svcMode=cvs('c_svc_mode','');
@@ -920,7 +922,7 @@ function calcRun(){
   const chipsEl=$c('c_svc_chips');
   if(chipsEl) chipsEl.querySelectorAll('input:checked').forEach(function(i){ svc.push(i.value); });
   fillCity();
-  const rows=DATA.filter(function(r){ return r.价格&&typeof r.价格==='object'&&(!country||r.国家===country)&&(!ctype||r.货物类型===ctype)&&(!city||cityHit(r,city)); });
+  const rows=DATA.filter(function(r){ return r.价格&&typeof r.价格==='object'&&(!country||r.国家===country)&&(!ctype||r.货物类型===ctype)&&(!city||cityHit(r,city))&&(!tax||r.是否包税===tax); });
   const seen={}, out=[];
   for(const r of rows){
     const key=r.供应商代码+'│'+r.渠道名称+'│'+r.单位;
