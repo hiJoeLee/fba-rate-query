@@ -1000,11 +1000,17 @@ function renderCalc(all, total){
 }
 function toggleCalc(i){
   const cards=document.querySelectorAll('#calc-list .card');
-  if(cards[i]) cards[i].classList.toggle('open');
+  if(!cards[i]) return;
+  const want=!cards[i].classList.contains('open');
+  cards[i].classList.toggle('open', want);
+  if(want) cards[i].classList.remove('b-open');   // 互斥：开附加费明细时收起主运价依据
 }
 function toggleBasis(i){
   const cards=document.querySelectorAll('#calc-list .card');
-  if(cards[i]) cards[i].classList.toggle('b-open');
+  if(!cards[i]) return;
+  const want=!cards[i].classList.contains('b-open');
+  cards[i].classList.toggle('b-open', want);
+  if(want) cards[i].classList.remove('open');     // 互斥：开主运价依据时收起附加费明细
 }
 /* 主运价依据：档位价格 + 运价信息 + 渠道备注（__FBA_NOTES__ 复用查询页备注组件） */
 function basisHtml(c){
