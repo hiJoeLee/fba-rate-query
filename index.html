@@ -843,7 +843,7 @@ function calcMain(r,g){
   const freight=priceV*chargeQty;
   const mk=(typeof markupOf==='function')?(markupOf(r,tier,priceV)||0):0;
   return {tier:tier, price:priceV, qty:chargeQty, rawQty:qty, unitW:unitW, minNote:minNote,
-    currency:r.货币||'', freight:+freight.toFixed(2), markup:+(mk*chargeQty).toFixed(2),
+    currency:r.货币||'', freight:+freight.toFixed(2), markup:+(mk*chargeQty).toFixed(2), mk:mk,
     subtotal:+((priceV+mk)*chargeQty).toFixed(2)};
 }
 
@@ -970,7 +970,7 @@ function renderCalc(all, total){
       +'<div class="ch-tags"><span class="tag">'+esc(q.main.tier)+'</span>'+tag+'</div></div>'
       +'<div class="ch-body">'
       +'<div class="calcmain">'
-      +'<div class="cm-fee"><div class="k">主运费</div><div class="v">'+fmtN(q.main.freight)+'</div><div class="sub">'+esc(q.main.tier)+' ｜ '+fmtN(q.main.price)+esc(q.main.unitW)+' × '+fmtN(q.main.qty)+' '+esc(q.main.unitW)+(q.main.minNote?' · '+esc(q.main.minNote):'')+'</div></div>'
+      +'<div class="cm-fee"><div class="k">主运费</div><div class="v">'+fmtN(q.main.freight)+'</div><div class="sub">'+esc(q.main.tier)+' ｜ '+fmtN(q.main.price)+esc(q.main.unitW)+(q.main.mk>0?'(+'+fmtN(q.main.mk)+')':'')+' × '+fmtN(q.main.qty)+' '+esc(q.main.unitW)+(q.main.minNote?' · '+esc(q.main.minNote):'')+'</div></div>'
       +'<div class="cm-fee"><div class="k">利润加价</div><div class="v">'+(q.main.markup>0?'+'+fmtN(q.main.markup):'0')+'</div><div class="sub">含利润</div></div>'
       +'<div class="cm-fee"><div class="k">附加费</div><div class="v">'+q.scs.filter(function(s){return s.status==='hit';}).length+' 项命中</div><div class="sub">'+(q.nq?'含需单询项':(q.pendingCount?'含待确认项':'全部可算'))+'</div></div>'
       +'<div class="cm-fee total"><div class="k">合计（'+esc(q.main.currency||'币种待标')+'）</div><div class="v">'+fmtN(q.total)+'</div><div class="sub">主运费+加价+附加费</div></div>'
@@ -999,11 +999,15 @@ function basisHtml(c){
   const pr=Object.keys(c.价格||{});
   const priceHtml=pr.length
     ?'<table class="c-tbl"><colgroup><col style="width:40%"><col style="width:60%"></colgroup>'
-    +'<thead><tr><th>档位</th><th style="text-align:right">单价（'+esc(c.货币||'RMB')+'/'+esc(c.单位||'')+'）</th></tr></thead>'
-    +'<tbody>'+pr.map(function(k){return '<tr><td>'+esc(k)+'</td><td class="money">'+fmtN(c.价格[k])+'</td></tr>';}).join('')+'</tbody></table>'
+    +'<thead><tr><th>档位</th><th style="text-align:right">单价（'+esc(c.货币||'RMB')+'/'+esc(c.单位||'')+'，括号为利润加价）</th></tr></thead>'
+    +'<tbody>'+pr.map(function(k){
+      const v=c.价格[k];
+      return '<tr><td>'+esc(k)+'</td><td class="money" title="'+esc(priceTitle(c,k,v))+'">'+priceBody(c,k,v)+'</td></tr>';
+    }).join('')+'</tbody></table>'
     :'<div class="b-empty">无档位价格</div>';
+  const fLabel=fileLabel({文件:c.文件, 供应商代码:fileToSup(c.文件)});
   const fields=[
-    ['文件',c.文件],['来源表',c.来源表名],['来源行号',c.来源行号],['区间',c.区间],['国家',c.国家],
+    ['文件',ANA.on?fLabel:c.文件],['来源表',srcLabelMasked(c)],['来源行号',c.来源行号],['区间',c.区间],['国家',c.国家],
     ['运输方式',c.运输方式],['交货地',c.交货地],['交货仓库',c.交货仓库],['货物类型',c.货物类型],
     ['可收货城市',(c.可收货城市||[]).join('、')],['FBA仓库',c.FBA仓库],['是否包税',c.是否包税],
     ['开始时间',c.开始时间],['货柜容量',c.货柜容量],['时效',c.时效]
