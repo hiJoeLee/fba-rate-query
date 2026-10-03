@@ -388,6 +388,14 @@
     color:var(--acc2);font-family:var(--mono);font-weight:600;margin-bottom:8px}
   .cgrp-t::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--acc)}
   .grow{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
+  .gitem.wide{grid-column:1/-1}
+  .chips{display:flex;flex-wrap:wrap;gap:6px}
+  .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line2);border-radius:999px;
+    padding:4px 12px;font-size:12px;cursor:pointer;background:var(--bg);color:var(--ink2);
+    transition:background .15s,color .15s,border-color .15s;user-select:none}
+  .chip:hover{border-color:var(--acc)}
+  .chip.on{background:var(--acc);border-color:var(--acc);color:#fff}
+  .chip input{display:none}
   .gitem label{display:block;font-size:10px;letter-spacing:.1em;color:var(--ink3);margin-bottom:5px}
   .gitem label b{color:var(--acc)}
   .gitem input,.gitem select{
@@ -567,7 +575,10 @@
       <div class="cgrp">
         <div class="cgrp-t">服务项</div>
         <div class="grow">
-          <div class="gitem"><label>服务项（可选）</label><select id="c_svc"><option value="">无</option><option value="单独报关">单独报关</option><option value="合并报关">合并报关</option><option value="贴标费">贴标</option><option value="报关费">报关</option></select><div class="unit">服务触发规则</div></div>
+          <div class="gitem"><label>报关方式</label><select id="c_svc_mode"><option value="">默认随渠道</option><option value="合并报关">合并报关</option><option value="单独报关">单独报关</option></select><div class="unit">一单一选</div></div>
+        </div>
+        <div class="grow">
+          <div class="gitem wide"><label>加购服务（可多选）</label><div id="c_svc_chips" class="chips"></div><div class="unit">按规则触发附加费</div></div>
         </div>
       </div>
       <div class="cvol" id="c_vol">
@@ -669,7 +680,12 @@ function scEvalTrigger(tr,g,o){
       case 'between': ok=(c.value[0]<=v&&v<=c.value[1]); break;
       case 'is_true': ok=(v===true); break;
       case 'is_false': ok=(v===false); break;
-      case 'contains': ok=Object.prototype.toString.call(c.value)==='[object Array]'&&c.value.some(function(x){return String(v).indexOf(x)>=0;}); break;
+      case 'contains':
+        if(Object.prototype.toString.call(c.value)!=='[object Array]'){ok=false;break;}
+        if(Object.prototype.toString.call(v)==='[object Array]')
+          ok=c.value.some(function(x){return v.some(function(y){return String(y).indexOf(x)>=0;});});
+        else ok=c.value.some(function(x){return String(v).indexOf(x)>=0;});
+        break;
       case 'count_gt': ok=Object.prototype.toString.call(v)==='[object Array]'&&v.length>c.value; break;
       case 'count_le': ok=Object.prototype.toString.call(v)==='[object Array]'&&v.length<=c.value; break;
     }
@@ -830,14 +846,20 @@ function calcRun(){
     $c('calc-stats').style.display='none';
     return;
   }
-  const country=cvs('c_cn',''), ctype=cvs('c_type',''), svc=cvs('c_svc',''), city=cvs('c_city','');
+  const country=cvs('c_cn',''), ctype=cvs('c_type',''), city=cvs('c_city','');
+  /* 服务：报关方式（单选）+ 加购服务（chips 多选）→ 数组 */
+  const svc=[];
+  const svcMode=cvs('c_svc_mode','');
+  if(svcMode) svc.push(svcMode);
+  const chipsEl=$c('c_svc_chips');
+  if(chipsEl) chipsEl.querySelectorAll('input:checked').forEach(function(i){ svc.push(i.value); });
   fillCity();
   const rows=DATA.filter(function(r){ return r.价格&&typeof r.价格==='object'&&(!country||r.国家===country)&&(!ctype||r.货物类型===ctype)&&(!city||cityHit(r,city)); });
   const seen={}, out=[];
   for(const r of rows){
     const key=r.供应商代码+'│'+r.渠道名称+'│'+r.单位;
     if(seen[key]) continue; seen[key]=1;
-    const o={channel:r.渠道名称||'', service:svc||'', tax_mode:r.是否包税||'', declared_value:0};
+    const o={channel:r.渠道名称||'', service:svc, tax_mode:r.是否包税||'', declared_value:0};
     const main=calcMain(r,g);
     const scs=SRC.filter(function(x){return x.supplier===r.供应商代码;}).map(function(x){
       const res=scEvalRule(x,g,o);
@@ -922,9 +944,10 @@ function switchTab(name){
     const ts=[...new Set(DATA.map(function(r){return r.货物类型;}).filter(function(v){return v;}))].sort(function(a,b){return a.localeCompare(b,'zh');});
     ty.innerHTML='<option value="">全部货型</option>'+ts.map(function(t){return '<option>'+t+'</option>';}).join('');
   }
-  /* 服务项：从 61 条规则 trigger（order.service contains）动态提取，与规则词严格一致 */
-  const svcEl=$c('c_svc');
-  if(svcEl){
+  /* 加购服务 chips：从 61 条规则 trigger（order.service contains）动态提取，
+     报关方式（合并报关/单独报关）单独成单选，其余进多选 chips */
+  const chipsEl=$c('c_svc_chips');
+  if(chipsEl){
     const svcSet=[];
     SRC.forEach(function(r){
       const tr=r.trigger||{};
@@ -935,7 +958,12 @@ function switchTab(name){
       });
     });
     svcSet.sort(function(a,b){return a.localeCompare(b,'zh');});
-    svcEl.innerHTML='<option value="">无</option>'+svcSet.map(function(s){return '<option>'+s+'</option>';}).join('');
+    chipsEl.innerHTML=svcSet.filter(function(s){return s!=='合并报关'&&s!=='单独报关';})
+      .map(function(s){return '<label class="chip" data-v="'+s+'"><input type="checkbox" value="'+s+'">'+s+'</label>';}).join('');
+    chipsEl.querySelectorAll('.chip').forEach(function(ch){
+      const box=ch.querySelector('input');
+      ch.addEventListener('click',function(e){ e.preventDefault(); box.checked=!box.checked; ch.classList.toggle('on',box.checked); });
+    });
   }
   const btn=$c('c_btn');
   if(btn) btn.addEventListener('click', calcRun);
