@@ -369,7 +369,7 @@
   }
 
   /* ===== 运费计算标签（feat/计费 新增；沿用现有 token，不触碰原样式） ===== */
-  .tabs{display:flex;gap:8px;margin:26px 0 0;padding:0}
+  .tabs{display:flex;gap:8px;margin:2px 0 0;padding:0}
   .tab{
     font-family:var(--mono);font-size:12.5px;letter-spacing:.08em;color:var(--ink2);
     background:var(--panel);border:1px solid var(--line);border-radius:9px 9px 0 0;
@@ -477,7 +477,7 @@
     text-align:center;color:var(--ink3);font-size:13px}
   .calcn{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 14px;margin-bottom:14px}
   @media (max-width:640px){
-    .tabs{margin-top:18px}
+    .tabs{margin-top:4px}
     .tab{padding:8px 14px;font-size:11.5px}
     .calcmain{grid-template-columns:1fr 1fr}
     table.c-tbl col.c2{width:30%}
@@ -486,12 +486,6 @@
 </head>
 <body>
 <div class="wrap">
-
-  <!-- ===== 顶部标签：运价查询 / 运费计算（feat/计费 新增，不破坏原功能） ===== -->
-  <nav class="tabs" role="tablist">
-    <button class="tab active" id="tab-query" onclick="switchTab('query')">运价查询</button>
-    <button class="tab" id="tab-calc" onclick="switchTab('calc')">运费计算</button>
-  </nav>
 
   <header>
     <div class="brand">
@@ -506,6 +500,12 @@
       <div class="stat"><div class="n" id="st-ch">—</div><div class="l">渠道</div></div>
     </div>
   </header>
+
+  <!-- ===== 顶部标签：运价查询 / 运费计算（feat/计费 新增，不破坏原功能） ===== -->
+  <nav class="tabs" role="tablist">
+    <button class="tab active" id="tab-query" onclick="switchTab('query')">运价查询</button>
+    <button class="tab" id="tab-calc" onclick="switchTab('calc')">运费计算</button>
+  </nav>
 
   <div id="view-query">
   <section class="filterbar collapsed">
