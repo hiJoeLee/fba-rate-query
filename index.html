@@ -383,6 +383,10 @@
   .calcbar .t{display:flex;align-items:center;gap:8px;font-size:11px;letter-spacing:.16em;
     color:var(--ink3);font-family:var(--mono);margin-bottom:10px}
   .calcbar .t::before{content:"";width:10px;height:10px;border-radius:3px;background:var(--acc)}
+  .cgrp{background:var(--bg2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px}
+  .cgrp-t{display:flex;align-items:center;gap:6px;font-size:10px;letter-spacing:.14em;
+    color:var(--acc2);font-family:var(--mono);font-weight:600;margin-bottom:8px}
+  .cgrp-t::before{content:"";width:8px;height:8px;border-radius:2px;background:var(--acc)}
   .grow{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
   .gitem label{display:block;font-size:10px;letter-spacing:.1em;color:var(--ink3);margin-bottom:5px}
   .gitem label b{color:var(--acc)}
@@ -540,18 +544,31 @@
   <div id="view-calc" style="display:none">
     <section class="calcbar">
       <div class="t">货物信息 → 计算运价（主运费 + 附加费 = 合计）</div>
-      <div class="grow">
-        <div class="gitem"><label>长 <b>*</b> cm</label><input id="c_len" type="number" placeholder="如 60" min="0"><div class="unit">单件长（必填）</div></div>
-        <div class="gitem"><label>宽 <b>*</b> cm</label><input id="c_wid" type="number" placeholder="如 40" min="0"><div class="unit">单件宽（必填）</div></div>
-        <div class="gitem"><label>高 <b>*</b> cm</label><input id="c_hgt" type="number" placeholder="如 50" min="0"><div class="unit">单件高（必填）</div></div>
-        <div class="gitem"><label>单件重量 <b>*</b> kg</label><input id="c_wgt" type="number" placeholder="如 25" min="0"><div class="unit">单件实重（必填）</div></div>
-        <div class="gitem"><label>件数</label><input id="c_pcs" type="number" placeholder="如 2" min="1"><div class="unit">本票件数</div></div>
-        <div class="gitem"><label>邮编（可选）</label><input id="c_zip" type="text" placeholder="偏远/邮编带判定"><div class="unit">偏远/超大件邮编判定</div></div>
-        <div class="gitem"><label>地址类型</label><select id="c_addr"><option value="FBA">FBA仓</option><option value="商业">商业</option><option value="私人">私人</option><option value="学校">学校</option></select><div class="unit">商私/非FBA判定</div></div>
-        <div class="gitem"><label>货物类型</label><select id="c_type"></select><div class="unit">普货/带电等</div></div>
-        <div class="gitem"><label>目的国</label><select id="c_cn"></select><div class="unit">渠道匹配</div></div>
-        <div class="gitem"><label>服务项（可选）</label><select id="c_svc"><option value="">无</option><option value="单独报关">单独报关</option><option value="合并报关">合并报关</option><option value="贴标费">贴标</option><option value="报关费">报关</option></select><div class="unit">服务触发规则</div></div>
-        <div class="gitem"><label>可收货城市</label><select id="c_city"></select><div class="unit">收货地包含匹配</div></div>
+      <div class="cgrp">
+        <div class="cgrp-t">起运 → 目的</div>
+        <div class="grow">
+          <div class="gitem"><label>可收货城市</label><select id="c_city"></select><div class="unit">从哪个城市发货</div></div>
+          <div class="gitem"><label>目的国</label><select id="c_cn"></select><div class="unit">渠道匹配</div></div>
+          <div class="gitem"><label>邮编（可选）</label><input id="c_zip" type="text" placeholder="偏远/邮编带判定"><div class="unit">偏远/超大件邮编判定</div></div>
+          <div class="gitem"><label>地址类型</label><select id="c_addr"><option value="FBA">FBA仓</option><option value="商业">商业</option><option value="私人">私人</option><option value="学校">学校</option></select><div class="unit">商私/非FBA判定</div></div>
+        </div>
+      </div>
+      <div class="cgrp">
+        <div class="cgrp-t">货物信息</div>
+        <div class="grow">
+          <div class="gitem"><label>长 <b>*</b> cm</label><input id="c_len" type="number" placeholder="如 60" min="0"><div class="unit">单件长（必填）</div></div>
+          <div class="gitem"><label>宽 <b>*</b> cm</label><input id="c_wid" type="number" placeholder="如 40" min="0"><div class="unit">单件宽（必填）</div></div>
+          <div class="gitem"><label>高 <b>*</b> cm</label><input id="c_hgt" type="number" placeholder="如 50" min="0"><div class="unit">单件高（必填）</div></div>
+          <div class="gitem"><label>单件重量 <b>*</b> kg</label><input id="c_wgt" type="number" placeholder="如 25" min="0"><div class="unit">单件实重（必填）</div></div>
+          <div class="gitem"><label>件数</label><input id="c_pcs" type="number" placeholder="如 2" min="1"><div class="unit">本票件数</div></div>
+          <div class="gitem"><label>货物类型</label><select id="c_type"></select><div class="unit">普货/带电等</div></div>
+        </div>
+      </div>
+      <div class="cgrp">
+        <div class="cgrp-t">服务项</div>
+        <div class="grow">
+          <div class="gitem"><label>服务项（可选）</label><select id="c_svc"><option value="">无</option><option value="单独报关">单独报关</option><option value="合并报关">合并报关</option><option value="贴标费">贴标</option><option value="报关费">报关</option></select><div class="unit">服务触发规则</div></div>
+        </div>
       </div>
       <div class="cvol" id="c_vol">
         <span class="cv-i" id="cv_vol">货物体积：—</span>
