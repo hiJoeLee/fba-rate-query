@@ -1031,8 +1031,8 @@ function basisHtml(c, hitTier){
   const fLabel=fileLabel({文件:c.文件, 供应商代码:fileToSup(c.文件)});
   const fields=[
     ['文件',ANA.on?fLabel:c.文件],['来源表',srcLabelMasked(c)],['来源行号',c.来源行号],['区间',c.区间],['国家',c.国家],
-    ['运输方式',c.运输方式],['交货地',c.交货地],['交货仓库',c.交货仓库],['货物类型',c.货物类型],
-    ['可收货城市',(c.可收货城市||[]).join('、')],['FBA仓库',c.FBA仓库],['是否包税',c.是否包税],
+    ['运输方式',c.运输方式],['交货地',c.交货地],['交货仓库',maskNames(c.交货仓库)],['货物类型',c.货物类型],
+    ['可收货城市',(c.可收货城市||[]).join('、')],['FBA仓库',maskNames(c.FBA仓库)],['是否包税',c.是否包税],
     ['开始时间',c.开始时间],['货柜容量',c.货柜容量],['时效',c.时效]
   ].filter(function(f){ return f[1]!==undefined && f[1]!==null && f[1]!==''; });
   const infoHtml=fields.map(function(f){
@@ -1327,6 +1327,14 @@ const pubDateOf = (r)=>PUBLISHED[srcKeyOf(r)] || '—';
 const SUP_CODE = { '皓鹏':'HP', '扬程':'YC', '蓝图梦':'LTM' };
 const ANA = { on:true };                                  // 脱敏开关：默认开（业务视图）
 const supLabel = sup => (ANA.on ? (SUP_CODE[sup]||sup) : sup);
+/* 脱敏通用函数：文本中的供应商真实名替换为代码（如"皓鹏一件代发仓"→"HP一件代发仓"）。
+   遍历 SUP_CODE（供应商代码表），ANA.on 时才替换；无命中原样返回。 */
+function maskNames(t){
+  if(!ANA.on || t===null || t===undefined || t==='') return t;
+  let s=String(t);
+  for(const k in SUP_CODE){ if(k) s=s.split(k).join(SUP_CODE[k]||''); }
+  return s;
+}
 const fileToSup = f => { for(const k in SUP_CODE){ if(String(f||'').includes(k)) return k; } return ''; };
 function fileDateOf(f){
   if(!f) return '';
@@ -1721,7 +1729,7 @@ function cardHtml(rows, offset){
     const [h,t] = splitMode(r.运输方式);
     const taxCls = r.是否包税==='是'?'tax-y':(r.是否包税==='否'?'tax-n':'');
     const taxTxt = r.是否包税==='是'?'包税':(r.是否包税==='否'?'不包税':'—');
-    const dest = r.FBA仓库 || r.城市 || (r.开始邮编? (r.开始邮编+' - '+(r.结束邮编||'')) : '') || '—';
+    const dest = maskNames(r.FBA仓库) || r.城市 || (r.开始邮编? (r.开始邮编+' - '+(r.结束邮编||'')) : '') || '—';
     const tiers = Object.entries(r.价格||{});
     const priceHtml = tiers.length ? tiers.map(([tier,p])=>
       `<div class="ptier"><span class="t">${esc(tier)}</span><span class="p" title="${esc(priceTitle(r,tier,p))}">${priceBody(r,tier,p)}</span></div>`
@@ -1880,7 +1888,7 @@ function buildTableHtml(gk){
   const priceCells = tiers.map(t=>`<th class="num">${esc(t)}</th>`).join('');
   const body = g.map(r=>{
     const tax = r.是否包税==='是'?'<span class="tx tx-y">包税</span>':(r.是否包税==='否'?'<span class="tx tx-n">不包税</span>':'—');
-    const dest = r.FBA仓库 || r.城市 || (r.开始邮编? (r.开始邮编+' - '+(r.结束邮编||'')) : '') || '—';
+    const dest = maskNames(r.FBA仓库) || r.城市 || (r.开始邮编? (r.开始邮编+' - '+(r.结束邮编||'')) : '') || '—';
     const priceTd = tiers.map(t=>{
       const v = (r.价格||{})[t];
       return (v===undefined||v===null) ? '<td class="dash">—</td>' : `<td class="num" title="${esc(priceTitle(r,t,v))}">${priceBody(r,t,v)}</td>`;
