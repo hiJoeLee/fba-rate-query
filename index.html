@@ -536,11 +536,11 @@
     <section class="calcbar">
       <div class="t">货物信息 → 计算运价（主运费 + 附加费 = 合计）</div>
       <div class="grow">
-        <div class="gitem"><label>长 <b>*</b> cm</label><input id="c_len" type="number" value="60" min="0"><div class="unit">单件长（必填）</div></div>
-        <div class="gitem"><label>宽 <b>*</b> cm</label><input id="c_wid" type="number" value="40" min="0"><div class="unit">单件宽（必填）</div></div>
-        <div class="gitem"><label>高 <b>*</b> cm</label><input id="c_hgt" type="number" value="50" min="0"><div class="unit">单件高（必填）</div></div>
-        <div class="gitem"><label>单件重量 <b>*</b> kg</label><input id="c_wgt" type="number" value="25" min="0"><div class="unit">单件实重（必填）</div></div>
-        <div class="gitem"><label>件数</label><input id="c_pcs" type="number" value="2" min="1"><div class="unit">本票件数</div></div>
+        <div class="gitem"><label>长 <b>*</b> cm</label><input id="c_len" type="number" placeholder="如 60" min="0"><div class="unit">单件长（必填）</div></div>
+        <div class="gitem"><label>宽 <b>*</b> cm</label><input id="c_wid" type="number" placeholder="如 40" min="0"><div class="unit">单件宽（必填）</div></div>
+        <div class="gitem"><label>高 <b>*</b> cm</label><input id="c_hgt" type="number" placeholder="如 50" min="0"><div class="unit">单件高（必填）</div></div>
+        <div class="gitem"><label>单件重量 <b>*</b> kg</label><input id="c_wgt" type="number" placeholder="如 25" min="0"><div class="unit">单件实重（必填）</div></div>
+        <div class="gitem"><label>件数</label><input id="c_pcs" type="number" placeholder="如 2" min="1"><div class="unit">本票件数</div></div>
         <div class="gitem"><label>邮编（可选）</label><input id="c_zip" type="text" placeholder="偏远/邮编带判定"><div class="unit">偏远/超大件邮编判定</div></div>
         <div class="gitem"><label>地址类型</label><select id="c_addr"><option value="FBA">FBA仓</option><option value="商业">商业</option><option value="私人">私人</option><option value="学校">学校</option></select><div class="unit">商私/非FBA判定</div></div>
         <div class="gitem"><label>货物类型</label><select id="c_type"></select><div class="unit">普货/带电等</div></div>
