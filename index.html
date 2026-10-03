@@ -970,7 +970,7 @@ function renderCalc(all, total){
       +'<div class="ch-tags"><span class="tag">'+esc(q.main.tier)+'</span>'+tag+'</div></div>'
       +'<div class="ch-body">'
       +'<div class="calcmain">'
-      +'<div class="cm-fee"><div class="k">主运费</div><div class="v">'+fmtN(q.main.freight)+'</div><div class="sub">'+esc(q.main.tier)+' ｜ '+fmtN(q.main.price)+esc(q.main.unitW)+(q.main.mk>0?'(+'+fmtN(q.main.mk)+')':'')+' × '+fmtN(q.main.qty)+' '+esc(q.main.unitW)+(q.main.minNote?' · '+esc(q.main.minNote):'')+'</div></div>'
+      +'<div class="cm-fee"><div class="k">主运费</div><div class="v">'+fmtN(q.main.freight)+'</div><div class="sub">'+esc(q.main.tier)+' ｜ '+fmtN(q.main.price)+(q.main.mk>0?'(+'+fmtN(q.main.mk)+')':'')+' × '+fmtN(q.main.qty)+' '+esc(q.main.unitW)+(q.main.minNote?' · '+esc(q.main.minNote):'')+'</div></div>'
       +'<div class="cm-fee"><div class="k">利润加价</div><div class="v">'+(q.main.markup>0?'+'+fmtN(q.main.markup):'0')+'</div><div class="sub">含利润</div></div>'
       +'<div class="cm-fee"><div class="k">附加费</div><div class="v">'+q.scs.filter(function(s){return s.status==='hit';}).length+' 项命中</div><div class="sub">'+(q.nq?'含需单询项':(q.pendingCount?'含待确认项':'全部可算'))+'</div></div>'
       +'<div class="cm-fee total"><div class="k">合计（'+esc(q.main.currency||'币种待标')+'）</div><div class="v">'+fmtN(q.total)+'</div><div class="sub">主运费+加价+附加费</div></div>'
