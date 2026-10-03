@@ -39,7 +39,7 @@ def main():
 sys.path.insert(0, {str(PARSER)!r})
 from rule_engine import build_trigger, evaluate_rule
 rules = json.load(open({str(PARSER / 'v2_mapping_61.json')!r}, encoding='utf-8'))
-for r in rules: r['trigger'] = build_trigger(r)
+for r in rules: r.setdefault('trigger', build_trigger(r))
 inputs = json.load(open({str(inputs_file)!r}, encoding='utf-8'))
 out = [{{'name': inp['name'], 'items': [
     {{'name': r['name'], 'status': evaluate_rule(r, inp['goods'], inp['order'])['status'],

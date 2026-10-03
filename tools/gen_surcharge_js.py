@@ -41,7 +41,8 @@ def main():
         print(f"缺规则源文件：{SRC}"); return 1
     rules = json.loads(SRC.read_text(encoding="utf-8"))
     for r in rules:
-        r["trigger"] = build_trigger_js_compat(r)
+        # JSON 已有显式 trigger（如超大件专车 1500kg）则保留，未构建的才用 build_trigger 生成
+        r.setdefault("trigger", build_trigger_js_compat(r))
     body = json.dumps(rules, ensure_ascii=False, separators=(",", ":"))
     js = f"{START_MARK}\nwindow.__FBA_SURCHARGE_RULES__ = {body};\n{END_MARK}\n"
 
