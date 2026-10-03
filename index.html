@@ -392,6 +392,8 @@
   .gitem input:focus,.gitem select:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(224,123,31,.12)}
   .gitem .unit{font-size:10px;color:var(--ink3);margin-top:3px;font-family:var(--mono)}
   .cbar-btm{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;flex-wrap:wrap}
+  .cvol{font-family:var(--mono);font-size:12px;color:var(--acc2);background:#fff6e6;border:1px solid #f2c879;
+    border-radius:8px;padding:6px 12px;margin-top:10px;display:inline-block}
   .cbtn{
     background:var(--acc);color:#fff;border:none;border-radius:9px;padding:10px 26px;
     font-size:14px;font-weight:600;cursor:pointer;letter-spacing:.06em;
@@ -548,6 +550,7 @@
         <div class="gitem"><label>服务项（可选）</label><select id="c_svc"><option value="">无</option><option value="单独报关">单独报关</option><option value="合并报关">合并报关</option><option value="贴标费">贴标</option><option value="报关费">报关</option></select><div class="unit">服务触发规则</div></div>
         <div class="gitem"><label>可收货城市</label><select id="c_city"></select><div class="unit">收货地包含匹配</div></div>
       </div>
+      <div class="cvol" id="c_vol">货物体积：—（填长/宽/高后实时显示）</div>
       <div class="cbar-btm">
         <button class="cbtn" id="c_btn">计算运价</button>
         <div class="chint" id="c_hint">计费重 = max(实重, 体积重)；体积重默认长×宽×高÷5000，渠道有重比按渠道换算</div>
@@ -769,6 +772,18 @@ function fillCity(){
     +CITY_LIST.map(function(c){return '<option>'+c+'</option>';}).join('')
     +'<option value="__other__">其他</option>';
 }
+/* 实时体积：长×宽×高×件数，输入即算（不依赖点按钮） */
+function updateVol(){
+  const el=$c('c_vol'); if(!el) return;
+  const L=cv('c_len',0),W=cv('c_wid',0),H=cv('c_hgt',0);
+  if(L<=0||W<=0||H<=0){ el.textContent='货物体积：—（填长/宽/高后实时显示）'; return; }
+  const pcsRaw=$c('c_pcs')?$c('c_pcs').value:'';
+  const pcs=pcsRaw===''?0:Math.max(cv('c_pcs',1)||1,1);
+  const one=L*W*H/1e6, total=one*(pcs||1);
+  el.textContent=pcs>0
+    ?'货物体积：'+total.toFixed(3)+' CBM（'+pcs+' 件 × 单件 '+one.toFixed(3)+' CBM）'
+    :'货物体积：'+one.toFixed(3)+' CBM（件数未填，按 1 件）';
+}
 function calcRun(){
   const g={
     weight_kg:cv('c_wgt',0), length_cm:cv('c_len',0), width_cm:cv('c_wid',0), height_cm:cv('c_hgt',0),
@@ -877,7 +892,9 @@ function switchTab(name){
   if(btn) btn.addEventListener('click', calcRun);
   ['c_len','c_wid','c_hgt','c_wgt','c_pcs'].forEach(function(id){
     const el=$c(id); if(el) el.addEventListener('keydown',function(e){ if(e.key==='Enter') calcRun(); });
+    if(el) el.addEventListener('input', updateVol);
   });
+  updateVol();
 })();
 
 /* 各来源表的发布时间（按表逐张拆解/上线，人工维护）。
