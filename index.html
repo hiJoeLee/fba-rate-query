@@ -423,6 +423,19 @@
   .rstat .n{font-family:var(--mono);font-size:20px;font-weight:700;color:var(--acc2)}
   .rstat .l{font-size:11px;color:var(--ink3);letter-spacing:.08em}
   .rstat.g .n{color:var(--ok)} .rstat.o .n{color:var(--acc2)} .rstat.x .n{color:var(--ink2)}
+  .ch-head{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+  .ch-name{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:6px;line-height:1.45}
+  .ch-name .sup{font-size:10px;font-weight:400;color:var(--ink3);font-family:var(--mono);
+    border:1px solid var(--line2);border-radius:4px;padding:1px 5px;margin-right:4px;vertical-align:2px}
+  .ch-meta{display:flex;flex-wrap:wrap;gap:5px 14px;font-size:12px;color:var(--ink2)}
+  .ch-meta .mi{display:inline-flex;align-items:baseline;gap:4px;max-width:230px;
+    overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:bottom}
+  .ch-meta .k{font-size:10px;color:var(--ink3);font-family:var(--mono);letter-spacing:.06em}
+  .ch-tags{display:flex;gap:6px;align-items:center;flex-wrap:wrap;flex:none}
+  .ch-tags .tag{font-family:var(--mono);font-size:10.5px;color:var(--acc2);
+    border:1px solid rgba(224,123,31,.35);background:rgba(224,123,31,.07);
+    padding:2px 9px;border-radius:20px;letter-spacing:.06em;white-space:nowrap}
+  .ch-tags .tag.quote{color:#b45309;border-color:#f2c879;background:#fff6e6}
   .calcmain{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}
   .cm-fee{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 11px}
   .cm-fee .k{font-size:10px;color:var(--ink3);letter-spacing:.1em;font-family:var(--mono)}
@@ -790,10 +803,19 @@ function calcMain(r,g){
   for(const k of keys){ const lim=parseTierLimit(k); if(lim!==null&&lim<=qty){ tier=k; priceV=price[k]; } }
   if(priceV===null){ tier=keys[0]||''; priceV=price[tier]||0; }
   let chargeQty=qty, minNote='';
-  if(/起收/.test(tier)){
-    const lim=parseTierLimit(tier);
-    if(lim!==null&&lim>qty){ chargeQty=lim; minNote='低于起收，按起收 '+lim+' '+unitW+' 计费'; }
+  /* 起收：低于档位下限按下限计费。
+     CBM 渠道按首档下限起收（供应商通用规则：不足1CBM按1CBM计费）；
+     含"起收"字样的档位（如 8CBM/4P起收）按该档下限起收；KG 渠道不按档位下限起收。 */
+  let base=qty;
+  if(r.单位==='CBM'){
+    const l0=parseTierLimit(keys[0]||'');
+    if(l0!==null&&l0>qty) base=l0;
   }
+  if(/起收/.test(tier)){
+    const l=parseTierLimit(tier);
+    if(l!==null&&l>qty) base=l;
+  }
+  if(base>qty){ chargeQty=base; minNote='低于起收，按起收 '+base+' '+unitW+' 计费'; }
   const freight=priceV*chargeQty;
   const mk=(typeof markupOf==='function')?(markupOf(r,tier,priceV)||0):0;
   return {tier:tier, price:priceV, qty:chargeQty, rawQty:qty, unitW:unitW, minNote:minNote,
@@ -900,7 +922,7 @@ function renderCalc(all, total){
     return '<div class="card">'
       +'<div class="ch-head"><div><div class="ch-name"><span class="sup">'+esc(sup)+'</span> · '+esc(c.渠道名称||'')+'</div>'
       +'<div class="ch-meta"><span class="mi"><span class="k">运输</span>'+esc(c.运输方式||'')+'</span>'
-      +'<span class="mi"><span class="k">时效</span>'+esc(c.时效||'')+'</span>'
+      +'<span class="mi" title="'+esc(c.时效||'')+'"><span class="k">时效</span>'+esc(c.时效||'')+'</span>'
       +'<span class="mi"><span class="k">交货</span>'+esc(c.交货仓库||c.交货地||'')+'</span>'
       +'<span class="mi"><span class="k">计费</span>'+esc(c.单位||'')+'</span></div></div>'
       +'<div class="ch-tags"><span class="tag">'+esc(q.main.tier)+'</span>'+tag+'</div></div>'
