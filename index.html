@@ -508,6 +508,7 @@
   .adm-row .meta .mk{font-size:11px;color:var(--ink3);white-space:nowrap}
   .badge{display:inline-block;padding:1px 8px;border-radius:999px;font-size:10.5px;font-weight:600;white-space:nowrap}
   .badge.b-eff{background:#e6f7ee;color:#17864a}
+  .badge.b-draft{background:#eef3fb;color:#3d6bb3}
   .badge.b-none{background:#f2f3f5;color:var(--ink3)}
   .badge.b-pend{background:#fff6e6;color:var(--acc2)}
   .badge.b-red{background:#fdeeec;color:#c0392b}
@@ -1228,11 +1229,13 @@ function admRender(){
   if(!arr.length){ $c('adm-list').innerHTML='<div class="c-emptynote">无符合条件的渠道记录</div>'; return; }
   $c('adm-list').innerHTML=arr.map(function(c){
     const ec=(effAll[c.key]||{}).rules||[];
+    const effCnt=ec.filter(function(x){ return x.eff; }).length;
+    const draftCnt=ec.length-effCnt;
     const notes=admNotes(c.sup,c.sheet);
     const rules=admRulesOf(c.sup);
     const redCnt=notes.filter(function(n){ return n.red; }).length;
     const pendCnt=rules.filter(function(r){ return r.rule_status==='rule_pending'||r.rule_status==='param_pending'||r.rule_status==='manual'; }).length;
-    const st=ec.length?'<span class="badge b-eff">已生效 '+ec.length+'</span>':'<span class="badge b-none">未生效</span>';
+    const st=effCnt?'<span class="badge b-eff">已生效 '+effCnt+'</span>':(draftCnt?'<span class="badge b-draft">草稿 '+draftCnt+'</span>':'<span class="badge b-none">未生效</span>');
     return '<div class="adm-row" onclick="openAdminDrawer(\''+admEscKey(c.key)+'\')">'
       +'<span class="su">'+esc(supLabel(c.sup))+'</span>'
       +'<span class="sheet">'+esc(c.sheet)+'</span>'
@@ -1256,24 +1259,26 @@ function openAdminDrawer(key){
   const left='<div class="ad-col l"><div class="col-t">源表备注附加费条款<span class="cnt">'+notes.length+' 条'+(notes.some(function(n){ return n.red; })?' · 红色为风险条款':'')+'</span></div>'
     +(notes.length?notes.map(function(n,i){ return '<div class="ad-note'+(n.red?' red':'')+'"><span class="no">'+(i+1)+'</span>'+esc(n.text)+'</div>'; }).join('')
       :'<div class="ad-empty">该来源表无备注条款</div>')+'</div>';
-  const right='<div class="ad-col"><div class="col-t">规则引擎匹配/生成规则<span class="cnt">'+rules.length+' 条 · 已生效 '+effKey.rules.length+' 条</span></div>'
+  const right='<div class="ad-col"><div class="col-t">规则引擎匹配/生成规则<span class="cnt">'+rules.length+' 条 · 已生效 '+effKey.rules.filter(function(x){return x.eff;}).length+' 条</span></div>'
     +'<button class="ad-new" onclick="adminRuleNew(\''+ttl+'\')">＋ 新增规则（人工补充遗漏项）</button>'
     +(rules.length?rules.map(function(r){
       const hit=effKey.rules.filter(function(x){ return x.name===r.name; })[0];
-      const effOn=!!hit;
+      const effOn=!!(hit&&hit.eff);
+      const draft=!!(hit&&!hit.eff);
       return '<div class="ad-rule'+(effOn?' eff':'')+'"><div class="r-top">'
         +'<span class="r-name">'+esc(r.name)+'</span>'
         +'<span class="r-unified">'+esc(r.unified_name||'')+'</span>'
         +admRuleBadge(r)
         +(effOn?'<span class="badge b-eff">已生效</span>':'')
+        +(draft?'<span class="badge b-draft">草稿</span>':'')
         +'</div>'
-        +'<div class="r-formula"><b>计费：</b>'+admFmtFormula(r)+' · 模式 '+esc(r.billing_mode||'')+'</div>'
-        +'<div class="r-trigger"><b>触发：</b>'+admFmtTrigger(r)+'</div>'
+        +'<div class="r-formula"><b>计费：</b>'+(draft?'已编辑待生效：'+fmtN(hit.amount)+' '+esc(hit.unit||'元')+'/'+esc(hit.per||'票')+(hit.cond?' · '+esc(hit.cond):''):admFmtFormula(r))+' · 模式 '+esc(r.billing_mode||'')+'</div>'
+        +'<div class="r-trigger"><b>触发：</b>'+(draft?(hit.cond?esc(hit.cond):'（草稿）'):admFmtTrigger(r))+'</div>'
         +'<div class="r-src">'+esc(r.source||'')+'</div>'
         +'<div class="r-ops">'
         +'<label><input type="checkbox"'+(effOn?' checked':'')+' onchange="adminEffToggle(\''+ttl+'\',\''+admEscKey(r.name)+'\',this.checked)"> 生效</label>'
         +'<span class="alink" onclick="adminRuleEdit(\''+ttl+'\',\''+admEscKey(r.name)+'\')">编辑</span>'
-        +(effOn?'<span class="alink danger" onclick="adminEffDel(\''+ttl+'\',\''+admEscKey(r.name)+'\')">移除生效</span>':'')
+        +(hit?'<span class="alink danger" onclick="adminEffDel(\''+ttl+'\',\''+admEscKey(r.name)+'\')">移除</span>':'')
         +'</div></div>';
     }).join(''):'<div class="ad-empty">暂无匹配规则，可点击"新增规则"人工补充</div>')+'</div>';
   $c('adm-drawer').innerHTML=head+'<div class="ad-body">'+left+right+'</div>';
@@ -1285,24 +1290,39 @@ function adminEffToggle(key, name, on){
   const eff=admEffGet();
   const c=ADM_CH[key];
   const list=eff[key]||{sup:c?c.sup:'', rules:[]};
-  const src=SRC.filter(function(x){ return x.supplier===list.sup && x.name===name; })[0];
+  const hit=list.rules.filter(function(x){ return x.name===name; })[0];
   if(on){
-    if(!src) return;
-    list.rules.push({name:src.name,
-      amount:(src.formula&&src.formula.params)?(src.formula.params.amount!==undefined?src.formula.params.amount:null):null,
-      unit:(src.formula&&src.formula.params)?(src.formula.params.unit||'元'):'元',
-      per:(src.formula&&src.formula.params)?(src.formula.params.per||'票'):'票',
-      cond:admFmtTrigger(src)});
-  }else{
-    list.rules=list.rules.filter(function(x){ return x.name!==name; });
+    if(hit){ hit.eff=true; }
+    else{
+      const src=SRC.filter(function(x){ return x.supplier===list.sup && x.name===name; })[0];
+      if(!src) return;
+      list.rules.push({name:src.name,
+        amount:(src.formula&&src.formula.params)?(src.formula.params.amount!==undefined?src.formula.params.amount:null):null,
+        unit:(src.formula&&src.formula.params)?(src.formula.params.unit||'元'):'元',
+        per:(src.formula&&src.formula.params)?(src.formula.params.per||'票'):'票',
+        cond:admFmtTrigger(src), eff:true});
+    }
+  }else if(hit){
+    hit.eff=false;   // 取消生效保留草稿（内容不丢），可再勾回
   }
   eff[key]=list; admEffSet(eff); openAdminDrawer(key);
 }
 function adminRuleEdit(key, name){
   const eff=admEffGet();
-  const list=eff[key]||{sup:(ADM_CH[key]?ADM_CH[key].sup:''), rules:[]};
-  const hit=list.rules.filter(function(x){ return x.name===name; })[0];
-  if(!hit) return;
+  const c=ADM_CH[key];
+  const list=eff[key]||{sup:c?c.sup:'', rules:[]};
+  let hit=list.rules.filter(function(x){ return x.name===name; })[0];
+  if(!hit){
+    /* 未生效规则也可编辑：先创建草稿记录（eff:false），保存后再勾选生效 */
+    const src=SRC.filter(function(x){ return x.supplier===list.sup && x.name===name; })[0];
+    hit={name:name,
+      amount:(src&&src.formula&&src.formula.params)?(src.formula.params.amount!==undefined?src.formula.params.amount:null):null,
+      unit:(src&&src.formula&&src.formula.params)?(src.formula.params.unit||'元'):'元',
+      per:(src&&src.formula&&src.formula.params)?(src.formula.params.per||'票'):'票',
+      cond:(src?admFmtTrigger(src):''), eff:false};
+    list.rules.push(hit);
+    eff[key]=list; admEffSet(eff);
+  }
   const ttl=admEscKey(key), nn=admEscKey(name);
   const form='<div class="ad-form">'
     +'<div class="f wide"><label>规则名称</label><input id="re_name" value="'+esc(hit.name)+'"></div>'
@@ -1365,7 +1385,7 @@ function adminNewSave(key){
     amount:amt&&amt.value!==''?Number(amt.value):null,
     unit:$c('n_unit')?$c('n_unit').value.trim()||'元':'元',
     per:$c('n_per')?$c('n_per').value.trim()||'票':'票',
-    cond:$c('n_cond')?$c('n_cond').value.trim():''});
+    cond:$c('n_cond')?$c('n_cond').value.trim():'', eff:false});
   eff[key]=list; admEffSet(eff); openAdminDrawer(key);
 }
 /* 货物类型客户语言说明（源自供应商原始价格表分类定义） */
