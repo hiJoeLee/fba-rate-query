@@ -1133,6 +1133,9 @@ function basisHtml(c, hitTier){
 /* ── 标签切换（运价查询 / 运费计算，原功能不受影响） ── */
 let calcRan=false;
 let adminRan=false;
+/* 运营后台模式：URL 带 ?admin=1 才显示"附加费管理"入口（客户版默认不暴露运营配置）。
+   单文件双模式过渡：后端化后可拆独立运营后台页（数据改走 API）。 */
+const IS_ADMIN = new URLSearchParams(location.search).get('admin')==='1';
 function switchTab(name){
   const q=name==='query';
   $c('view-query').style.display=q?'':'none';
@@ -1743,6 +1746,10 @@ function fillFileOptions(){                            // 供应商文件下拉�
   if([...s.options].some(o=>o.value===prev)) s.value = prev;
 }
 function init(){
+  /* 运营/客户双模式：非运营链接隐藏"附加费管理"入口；运营链接直接落地管理页 */
+  const ta=$c('tab-admin');
+  if(ta) ta.style.display=IS_ADMIN?'':'none';
+  if(IS_ADMIN){ switchTab('admin'); }
   const uni = (arr)=>[...new Set(arr.filter(v=>v!==null&&v!==undefined&&v!==''))].sort((a,b)=>a.localeCompare(b,'zh'));
   _files = uni(DATA.map(r=>r.文件));
   const srcsAll = uni(DATA.map(srcKeyOf));
