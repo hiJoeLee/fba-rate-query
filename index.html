@@ -938,6 +938,17 @@ function calcRun(){
     out.push({r:r,main:main,scs:scs,total:+(main.subtotal+scSum).toFixed(2),nq:nq,pendingCount:pendingCount});
   }
   out.sort(function(a,b){ return (a.nq?1:0)-(b.nq?1:0)||a.total-b.total; });
+  /* 摘要"计费重/计费量"行跟随首条推荐渠道口径：CBM/件渠道不显示计费重，避免误导 */
+  const chg=$c('cv_chg');
+  if(chg){
+    const u0=out.length?out[0].r.单位:null,
+      vol=+g.volume_cbm.toFixed(3),
+      dw=+(g.length_cm*g.width_cm*g.height_cm/5000*g.piece_count).toFixed(2),
+      wkg=g.weight_kg*g.piece_count;
+    if(u0==='CBM') chg.textContent='计费量：'+vol+' CBM（按体积计费）';
+    else if(u0==='件') chg.textContent='计费量：'+g.piece_count+' 件（按件计费）';
+    else if(u0==='KG') chg.textContent='计费重：'+Math.max(wkg,dw)+' KG（max 实重/体积重）';
+  }
   renderCalc(out, out.length);
 }
 
