@@ -521,15 +521,28 @@
   .ad-head .ad-title .s{font-size:11.5px;color:var(--ink3);margin-top:3px;word-break:break-all}
   .ad-x{cursor:pointer;font-size:20px;color:var(--ink3);line-height:1;padding:4px 6px;border-radius:6px}
   .ad-x:hover{background:var(--line);color:var(--ink1)}
-  .ad-body{flex:1;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);gap:0}
-  .ad-col{padding:14px 16px;overflow:auto}
+  .ad-body{flex:1;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,9fr);gap:0}
+  .ad-col{padding:14px 12px;overflow:auto}
   .ad-col.l{border-right:1px solid var(--line)}
   .ad-col .col-t{font-size:12.5px;font-weight:700;color:var(--ink1);margin-bottom:10px;display:flex;align-items:center;gap:8px}
   .ad-col .col-t .cnt{font-size:10.5px;color:var(--ink3);font-weight:400}
-  .ad-note{font-size:12px;line-height:1.55;color:var(--ink2);padding:8px 10px;border:1px solid var(--line);
-    border-radius:8px;margin-bottom:8px;background:var(--panel)}
+  .ad-note{font-size:11px;line-height:1.5;color:var(--ink2);padding:6px 8px;border:1px solid var(--line);
+    border-radius:8px;margin-bottom:6px;background:var(--panel);word-break:break-all}
   .ad-note.red{border-color:rgba(192,57,43,.4);color:#8d2c24;background:#fdf6f5}
   .ad-note .no{font-size:10px;color:var(--ink3);font-weight:600;margin-right:6px;font-family:var(--mono)}
+  .ad-idx{display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:6px;margin-bottom:4px;cursor:pointer;
+    font-size:11px;color:var(--ink2);border:1px solid var(--line);background:var(--panel)}
+  .ad-idx:hover{background:var(--panel2);border-color:var(--acc)}
+  .ad-idx.red{border-color:rgba(192,57,43,.45);color:#8d2c24}
+  .ad-idx .no{font-family:var(--mono);font-weight:700;color:var(--ink3);min-width:14px;text-align:center}
+  .ad-idx.red .no{color:#c0392b}
+  .ad-idx .tag{font-size:9px;color:#c0392b;background:#fdeeec;border-radius:4px;padding:1px 4px}
+  .ad-note-detail{margin-bottom:10px;border:1px solid var(--line);border-left:3px solid var(--acc2);
+    border-radius:8px;background:var(--panel);padding:8px 10px}
+  .ad-note-detail .nd-t{font-size:11.5px;font-weight:700;color:var(--ink1);display:flex;align-items:center;gap:6px;margin-bottom:6px}
+  .ad-note-detail .nd-x{cursor:pointer;color:var(--ink3);margin-left:auto;font-size:14px;line-height:1}
+  .ad-note-detail .nd-x:hover{color:var(--ink1)}
+  .ad-note-detail .nd-b{font-size:12px;line-height:1.6;color:var(--ink2)}
   .ad-rule{font-size:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--panel)}
   .ad-rule.eff{border-color:var(--acc);background:#f4fbf7;box-shadow:0 0 0 1px var(--acc) inset}
   .ad-rule .r-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -1156,6 +1169,7 @@ function switchTab(name){
    人工核对后可：编辑金额/条件、新增规则、删除/确认生效。
    生效规则存 localStorage（fba_admin_eff_v1），后续接入查询页计算时合并读取；编辑不回写 parser 规则文件（后端 B 阶段）。 */
 const ADM_EFF_KEY='fba_admin_eff_v1';
+let ADM_CUR_KEY='';
 function admEffGet(){ try{ return JSON.parse(localStorage.getItem(ADM_EFF_KEY)||'{}'); }catch(e){ return {}; } }
 function admEffSet(o){ localStorage.setItem(ADM_EFF_KEY, JSON.stringify(o)); }
 let ADM_CH=null, ADM_CH_ARR=null;
@@ -1260,6 +1274,7 @@ function admRender(){
 }
 function openAdminDrawer(key){
   const c=ADM_CH[key]; if(!c) return;
+  ADM_CUR_KEY=key;
   const notes=admNotes(c.sup,c.sheet);
   const rules=admRulesOf(c.sup);
   const effAll=admEffGet();
@@ -1268,10 +1283,11 @@ function openAdminDrawer(key){
   const head='<div class="ad-head"><div class="ad-title"><div class="t">'+esc(supLabel(c.sup))+' · '+esc(c.sheet)+' · '+esc(c.name)+'</div>'
     +'<div class="s">'+esc(c.country)+' · 单位 '+esc(c.unit)+' · '+c.qty+' 条运价 · 文件 '+esc(maskNames(c.file))+'</div></div>'
     +'<div class="ad-x" onclick="closeAdminDrawer()">✕</div></div>';
-  const left='<div class="ad-col l"><div class="col-t">源表备注附加费条款<span class="cnt">'+notes.length+' 条'+(notes.some(function(n){ return n.red; })?' · 红色为风险条款':'')+'</span></div>'
-    +(notes.length?notes.map(function(n,i){ return '<div class="ad-note'+(n.red?' red':'')+'"><span class="no">'+(i+1)+'</span>'+esc(n.text)+'</div>'; }).join('')
+  const left='<div class="ad-col l"><div class="col-t">备注条款<span class="cnt">'+notes.length+' 条'+(notes.some(function(n){ return n.red; })?' · 红色为风险':'')+'</span></div>'
+    +(notes.length?notes.map(function(n,i){ return '<div class="ad-idx'+(n.red?' red':'')+'" onclick="admShowNote('+i+')" title="点击查看第 '+(i+1)+' 条"><span class="no">'+(i+1)+'</span>'+(n.red?'<span class="tag">风险</span>':'')+'</div>'; }).join('')
       :'<div class="ad-empty">该来源表无备注条款</div>')+'</div>';
   const right='<div class="ad-col"><div class="col-t">规则引擎匹配/生成规则<span class="cnt">'+rules.length+' 条 · 已生效 '+effKey.rules.filter(function(x){return x.eff;}).length+' 条</span></div>'
+    +'<div id="adm-note-detail" style="display:none"></div>'
     +'<button class="ad-new" onclick="adminRuleNew(\''+ttl+'\')">＋ 新增规则（人工补充遗漏项）</button>'
     +(rules.length?rules.map(function(r){
       const hit=effKey.rules.filter(function(x){ return x.name===r.name; })[0];
@@ -1318,6 +1334,18 @@ function openAdminDrawer(key){
   $c('adm-mask').style.display='block';
 }
 function closeAdminDrawer(){ $c('adm-drawer').style.display='none'; $c('adm-mask').style.display='none'; }
+/* 备注索引：点击编号在右列上方展开该条全文，再点同一编号收起 */
+function admShowNote(i){
+  const d=$c('adm-note-detail'); if(!d) return;
+  const c=ADM_CH[ADM_CUR_KEY]; if(!c) return;
+  const notes=admNotes(c.sup,c.sheet);
+  const n=notes[i]; if(!n) return;
+  if(d.style.display!=='none' && d._i===i){ d.style.display='none'; return; }
+  d.innerHTML='<div class="nd-t">第 '+(i+1)+' 条备注'+(n.red?' <span class="badge b-red">风险条款</span>':'')+' <span class="nd-x" onclick="admCloseNote()">×</span></div>'
+    +'<div class="nd-b">'+esc(n.text)+'</div>';
+  d.style.display='block'; d._i=i;
+}
+function admCloseNote(){ const d=$c('adm-note-detail'); if(d) d.style.display='none'; }
 function adminEffToggle(key, name, on){
   const eff=admEffGet();
   const c=ADM_CH[key];
