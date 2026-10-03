@@ -569,7 +569,7 @@
           <div class="gitem"><label>高 <b>*</b> cm</label><input id="c_hgt" type="number" placeholder="如 50" min="0"><div class="unit">单件高（必填）</div></div>
           <div class="gitem"><label>单件重量 <b>*</b> kg</label><input id="c_wgt" type="number" placeholder="如 25" min="0"><div class="unit">单件实重（必填）</div></div>
           <div class="gitem"><label>件数</label><input id="c_pcs" type="number" placeholder="如 2" min="1"><div class="unit">本票件数</div></div>
-          <div class="gitem"><label>货物类型</label><select id="c_type"></select><div class="unit">普货/带电等</div></div>
+          <div class="gitem"><label>货物类型</label><select id="c_type"></select><div class="unit" id="c_type_note">普货/带电等</div></div>
         </div>
       </div>
       <div class="cgrp">
@@ -935,17 +935,53 @@ function switchTab(name){
   if(tc) tc.classList.toggle('active',!q);
   if(!q&&!calcRan){ calcRan=true; calcRun(); }
 }
+/* 货物类型客户语言说明（内部分类含义以供应商确认单为准，占位待运营回填） */
+const TYPE_NOTE={
+  '普货':'普通货物（无特殊申报要求）',
+  '带电/敏感':'含电池、磁铁、液体等敏感物品',
+  '纺织品':'纺织品类货物',
+  '一类':'巴西海关申报分类（具体含义以皓鹏确认为准）',
+  '二类':'巴西海关申报分类（具体含义以皓鹏确认为准）',
+  '三类':'巴西海关申报分类（具体含义以皓鹏确认为准）',
+  '四类':'巴西海关申报分类（具体含义以皓鹏确认为准）',
+  '墨西哥A类':'墨西哥渠道货物分类（具体含义以扬程确认为准）',
+  '墨西哥B类':'墨西哥渠道货物分类（具体含义以扬程确认为准）',
+  '墨西哥C类':'墨西哥渠道货物分类（具体含义以扬程确认为准）'
+};
+/* 货物类型按国家联动：全部国家→通用货型（≥2国出现）；选定国家→通用+该国专属 */
+function fillType(){
+  const cn=$c('c_cn'), ty=$c('c_type');
+  if(!ty) return;
+  const country=cn?cn.value:'';
+  const map={};
+  DATA.forEach(function(r){ const t=r.货物类型; if(!t) return; (map[t]=map[t]||{})[r.国家]=1; });
+  const keep=country
+    ? Object.keys(map).filter(function(t){ return map[t][country]; })
+    : Object.keys(map).filter(function(t){ return Object.keys(map[t]).length>=2; });
+  keep.sort(function(a,b){return a.localeCompare(b,'zh');});
+  const prev=ty.value;
+  ty.innerHTML='<option value="">全部货型</option>'+keep.map(function(t){return '<option>'+t+'</option>';}).join('');
+  if(prev&&keep.indexOf(prev)>=0) ty.value=prev;
+  updTypeNote();
+}
+/* 选中货型时下方即时显示客户语言说明 */
+function updTypeNote(){
+  const ty=$c('c_type'), note=$c('c_type_note');
+  if(!note) return;
+  const v=ty?ty.value:'';
+  if(v){ note.textContent=TYPE_NOTE[v]||v; return; }
+  note.textContent=(ty&&ty.options.length>1)?'按目的国显示可发货物类型':'普货/带电等';
+}
 /* 初始化计算视图下拉（国家/货物类型从真实 DATA 生成） */
 (function initCalc(){
   const cn=$c('c_cn'), ty=$c('c_type');
+  if(ty) ty.addEventListener('change', updTypeNote);
   if(cn){
     const cs=[...new Set(DATA.map(function(r){return r.国家;}).filter(function(v){return v;}))].sort(function(a,b){return a.localeCompare(b,'zh');});
     cn.innerHTML='<option value="">全部国家</option>'+cs.map(function(c){return '<option>'+c+'</option>';}).join('');
+    cn.addEventListener('change', fillType);
   }
-  if(ty){
-    const ts=[...new Set(DATA.map(function(r){return r.货物类型;}).filter(function(v){return v;}))].sort(function(a,b){return a.localeCompare(b,'zh');});
-    ty.innerHTML='<option value="">全部货型</option>'+ts.map(function(t){return '<option>'+t+'</option>';}).join('');
-  }
+  fillType();
   /* 加购服务 chips：从 61 条规则 trigger（order.service contains）动态提取，
      报关方式（合并报关/单独报关）单独成单选，其余进多选 chips */
   const chipsEl=$c('c_svc_chips');
