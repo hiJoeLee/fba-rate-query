@@ -469,6 +469,9 @@
   .c-basis .b-row .v{color:var(--ink);word-break:break-word}
   .c-basis .b-notes{border-top:1px dashed var(--line);margin-top:8px;padding-top:8px}
   .c-basis .b-empty{color:var(--ink3);font-size:12px;padding:8px 0}
+  .c-basis table.c-tbl tr.hit-tier td{background:#fff6e6;color:var(--acc2);font-weight:700}
+  .c-basis .hit-badge{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;
+    background:var(--acc2);color:#fff;font-size:10px;font-weight:600;font-family:var(--mono);letter-spacing:.05em}
   table.c-tbl{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px}
   table.c-tbl col.c1{width:24%} table.c-tbl col.c2{width:34%} table.c-tbl col.c3{width:12%} table.c-tbl col.c4{width:30%}
   table.c-tbl th{text-align:left;font-size:10px;letter-spacing:.1em;color:var(--ink3);font-family:var(--mono);
@@ -995,7 +998,7 @@ function renderCalc(all, total){
       +'<tbody>'+rows+'</tbody></table>'
       +'<div class="cwhy"><b>说明</b>：规则来自 61 条附加费规则（v2_mapping_61.json）；待人工确认（manual_check）不产金额、显示"待确认"；参数待核 / 规则待定 / 人工单询在触发命中时标记"需单询"。</div>'
       +'</div>'
-      +'<div class="c-basis">'+basisHtml(c)+'</div></div></div>';
+      +'<div class="c-basis">'+basisHtml(c, q.main.tier)+'</div></div></div>';
   }).join('');
 }
 function toggleCalc(i){
@@ -1012,15 +1015,19 @@ function toggleBasis(i){
   cards[i].classList.toggle('b-open', want);
   if(want) cards[i].classList.remove('open');     // 互斥：开主运价依据时收起附加费明细
 }
-/* 主运价依据：档位价格 + 运价信息 + 渠道备注（__FBA_NOTES__ 复用查询页备注组件） */
-function basisHtml(c){
+/* 主运价依据：档位价格 + 运价信息 + 渠道备注（__FBA_NOTES__ 复用查询页备注组件）。
+   hitTier=当前计费命中的档位，表格中突出高亮。 */
+function basisHtml(c, hitTier){
   const pr=Object.keys(c.价格||{});
   const priceHtml=pr.length
     ?'<table class="c-tbl"><colgroup><col style="width:40%"><col style="width:60%"></colgroup>'
     +'<thead><tr><th>档位</th><th style="text-align:right">单价（'+esc(c.货币||'RMB')+'/'+esc(c.单位||'')+'，括号为利润加价）</th></tr></thead>'
     +'<tbody>'+pr.map(function(k){
       const v=c.价格[k];
-      return '<tr><td>'+esc(k)+'</td><td class="money" title="'+esc(priceTitle(c,k,v))+'">'+priceBody(c,k,v)+'</td></tr>';
+      const hit=hitTier!==undefined&&k===hitTier;
+      return '<tr'+(hit?' class="hit-tier"':'')+'>'
+        +'<td>'+esc(k)+(hit?' <span class="hit-badge">命中</span>':'')+'</td>'
+        +'<td class="money" title="'+esc(priceTitle(c,k,v))+'">'+priceBody(c,k,v)+'</td></tr>';
     }).join('')+'</tbody></table>'
     :'<div class="b-empty">无档位价格</div>';
   const fLabel=fileLabel({文件:c.文件, 供应商代码:fileToSup(c.文件)});
