@@ -57,8 +57,9 @@
   }
   .brand h1 em{font-style:normal;color:var(--acc)}
   .brand .sub{color:var(--ink2);font-size:13px;font-family:var(--mono);letter-spacing:.05em}
-  .ana-sw{display:inline-flex;align-items:center;gap:5px;margin-top:2px;
-    font-size:11px;color:var(--ink2);cursor:pointer;user-select:none}
+  .ana-sw{position:fixed;right:16px;bottom:16px;z-index:60;display:inline-flex;align-items:center;gap:5px;
+    background:var(--panel);border:1px solid var(--line2);border-radius:8px;padding:5px 10px;
+    font-size:11px;color:var(--ink2);cursor:pointer;user-select:none;box-shadow:0 2px 8px rgba(30,41,59,.12)}
   .ana-sw input{accent-color:var(--acc);cursor:pointer}
   .stats{display:flex;gap:12px;flex-wrap:wrap}
   .stat{
@@ -495,8 +496,8 @@
 
   <header>
     <div class="brand">
-      <h1>FBA 运价<em>查询台</em></h1>
-      <div class="sub">数据源：<span id="data-src">—</span> · 已拆解 <span id="sub-src">—</span> 个来源表</div>
+      <h1 id="brand-title">FBA 运价<em>查询台</em></h1>
+      <div class="sub" id="brand-sub">数据源：<span id="data-src">—</span> · 已拆解 <span id="sub-src">—</span> 个来源表</div>
       <label class="ana-sw" title="勾选后对业务隐藏真实供应商/文件名，改用代码显示"><input type="checkbox" id="ana" checked><span>隐藏供应商</span></label>
     </div>
     <div class="stats">
@@ -986,6 +987,10 @@ function switchTab(name){
   const tq=$c('tab-query'), tc=$c('tab-calc');
   if(tq) tq.classList.toggle('active',q);
   if(tc) tc.classList.toggle('active',!q);
+  /* 计算视图隐藏"FBA运价查询台"标题与数据源说明（查询视图保留） */
+  const bt=$c('brand-title'), bs=$c('brand-sub');
+  if(bt) bt.style.display=q?'':'none';
+  if(bs) bs.style.display=q?'':'none';
   if(!q&&!calcRan){ calcRan=true; calcRun(); }
 }
 /* 货物类型客户语言说明（源自供应商原始价格表分类定义） */
