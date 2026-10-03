@@ -546,6 +546,7 @@
         <div class="gitem"><label>货物类型</label><select id="c_type"></select><div class="unit">普货/带电等</div></div>
         <div class="gitem"><label>目的国</label><select id="c_cn"></select><div class="unit">渠道匹配</div></div>
         <div class="gitem"><label>服务项（可选）</label><select id="c_svc"><option value="">无</option><option value="单独报关">单独报关</option><option value="合并报关">合并报关</option><option value="贴标费">贴标</option><option value="报关费">报关</option></select><div class="unit">服务触发规则</div></div>
+        <div class="gitem"><label>可收货城市</label><select id="c_city"></select><div class="unit">收货地包含匹配</div></div>
       </div>
       <div class="cbar-btm">
         <button class="cbtn" id="c_btn">计算运价</button>
@@ -755,6 +756,19 @@ function calcMain(r,g){
 }
 
 /* ── 计算主流程：匹配渠道 → 主运费 + 附加费 → 排序渲染 ── */
+function cityHit(r,city){
+  const cs=r.可收货城市||[];
+  if(city==='__other__') return cs.some(function(c){return CITY_LIST.indexOf(c)<0;});  // 其他=含名单外城市
+  return cs.indexOf(city)>=0;                                                           // 包含匹配：该城 ∈ 可收货城市
+}
+let cityInited=false;
+function fillCity(){
+  if(cityInited) return; cityInited=true;
+  const el=$c('c_city'); if(!el) return;
+  el.innerHTML='<option value="">全部城市</option>'
+    +CITY_LIST.map(function(c){return '<option>'+c+'</option>';}).join('')
+    +'<option value="__other__">其他</option>';
+}
 function calcRun(){
   const g={
     weight_kg:cv('c_wgt',0), length_cm:cv('c_len',0), width_cm:cv('c_wid',0), height_cm:cv('c_hgt',0),
@@ -767,8 +781,9 @@ function calcRun(){
     $c('calc-stats').style.display='none';
     return;
   }
-  const country=cvs('c_cn',''), ctype=cvs('c_type',''), svc=cvs('c_svc','');
-  const rows=DATA.filter(function(r){ return r.价格&&typeof r.价格==='object'&&(!country||r.国家===country)&&(!ctype||r.货物类型===ctype); });
+  const country=cvs('c_cn',''), ctype=cvs('c_type',''), svc=cvs('c_svc',''), city=cvs('c_city','');
+  fillCity();
+  const rows=DATA.filter(function(r){ return r.价格&&typeof r.价格==='object'&&(!country||r.国家===country)&&(!ctype||r.货物类型===ctype)&&(!city||cityHit(r,city)); });
   const seen={}, out=[];
   for(const r of rows){
     const key=r.供应商代码+'│'+r.渠道名称+'│'+r.单位;
