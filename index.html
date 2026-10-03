@@ -415,6 +415,9 @@
     box-shadow:0 4px 14px rgba(224,123,31,.28);transition:all .16s}
   .cbtn:hover{background:var(--acc2);box-shadow:0 6px 18px rgba(178,94,10,.32)}
   .cbtn:active{transform:translateY(1px)}
+  .cbtns{display:flex;gap:10px;align-items:center}
+  .cbtn.rst{background:var(--panel);color:var(--ink2);border:1px solid var(--line2);box-shadow:none}
+  .cbtn.rst:hover{background:var(--panel2);color:var(--ink);box-shadow:none}
   .chint{font-size:12px;color:var(--ink3)}
   .chint b{color:var(--acc2);font-family:var(--mono)}
   .rstats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
@@ -601,7 +604,10 @@
         <span class="cv-i" id="cv_chg">计费重：—</span>
       </div>
       <div class="cbar-btm">
-        <button class="cbtn" id="c_btn">计算运价</button>
+        <div class="cbtns">
+          <button class="cbtn" id="c_btn">计算运价</button>
+          <button class="cbtn rst" id="c_rst" title="清空输入并复位">重置</button>
+        </div>
         <div class="chint" id="c_hint">计费重 = max(实重, 体积重)；体积重默认长×宽×高÷5000，渠道有重比按渠道换算</div>
       </div>
     </section>
@@ -858,6 +864,23 @@ function updateVol(){
   $c('cv_dwgt').textContent='体积重：'+dw+' KG（÷5000）'+unit;
   $c('cv_chg').textContent='计费重：'+(wkg===null?'—':Math.max(wkg,dw)+' KG（max 实重/体积重）');
 }
+/* 重置：清空输入、恢复默认值、清结果（方便查下一个运价） */
+function resetCalc(){
+  ['c_len','c_wid','c_hgt','c_wgt','c_pcs','c_zip'].forEach(function(id){
+    const el=$c(id); if(el) el.value='';
+  });
+  const cn=$c('c_cn'); if(cn){ cn.value=''; fillType(); }
+  const city=$c('c_city'); if(city) city.value='';
+  const addr=$c('c_addr'); if(addr) addr.value='FBA';
+  const svc=$c('c_svc_mode'); if(svc) svc.value='';
+  const chips=$c('c_svc_chips');
+  if(chips) chips.querySelectorAll('input').forEach(function(i){
+    i.checked=false; const ch=i.closest('.chip'); if(ch) ch.classList.remove('on');
+  });
+  updateVol();
+  const stats=$c('calc-stats'); if(stats) stats.style.display='none';
+  const list=$c('calc-list'); if(list) list.innerHTML='';
+}
 function calcRun(){
   const g={
     weight_kg:cv('c_wgt',0), length_cm:cv('c_len',0), width_cm:cv('c_wid',0), height_cm:cv('c_hgt',0),
@@ -1027,6 +1050,8 @@ function updTypeNote(){
   }
   const btn=$c('c_btn');
   if(btn) btn.addEventListener('click', calcRun);
+  const rst=$c('c_rst');
+  if(rst) rst.addEventListener('click', resetCalc);
   ['c_len','c_wid','c_hgt','c_wgt','c_pcs'].forEach(function(id){
     const el=$c(id); if(el) el.addEventListener('keydown',function(e){ if(e.key==='Enter') calcRun(); });
     if(el) el.addEventListener('input', updateVol);
