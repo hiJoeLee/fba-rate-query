@@ -922,6 +922,21 @@ function switchTab(name){
     const ts=[...new Set(DATA.map(function(r){return r.货物类型;}).filter(function(v){return v;}))].sort(function(a,b){return a.localeCompare(b,'zh');});
     ty.innerHTML='<option value="">全部货型</option>'+ts.map(function(t){return '<option>'+t+'</option>';}).join('');
   }
+  /* 服务项：从 61 条规则 trigger（order.service contains）动态提取，与规则词严格一致 */
+  const svcEl=$c('c_svc');
+  if(svcEl){
+    const svcSet=[];
+    SRC.forEach(function(r){
+      const tr=r.trigger||{};
+      (tr.conditions||[]).forEach(function(c){
+        if(c.field==='order.service'&&c.op==='contains'&&Object.prototype.toString.call(c.value)==='[object Array]'){
+          c.value.forEach(function(v){ if(svcSet.indexOf(v)<0) svcSet.push(v); });
+        }
+      });
+    });
+    svcSet.sort(function(a,b){return a.localeCompare(b,'zh');});
+    svcEl.innerHTML='<option value="">无</option>'+svcSet.map(function(s){return '<option>'+s+'</option>';}).join('');
+  }
   const btn=$c('c_btn');
   if(btn) btn.addEventListener('click', calcRun);
   ['c_len','c_wid','c_hgt','c_wgt','c_pcs'].forEach(function(id){
