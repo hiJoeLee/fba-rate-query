@@ -929,6 +929,9 @@ function switchTab(name){
     if(el) el.addEventListener('input', updateVol);
   });
   updateVol();
+  /* 可收货城市下拉：页面加载即填充（CITY_LIST 定义在本脚本后半段，
+     用 setTimeout 等脚本整体执行完，不依赖首次点计算） */
+  setTimeout(fillCity, 0);
 })();
 
 /* 各来源表的发布时间（按表逐张拆解/上线，人工维护）。
