@@ -1,0 +1,8 @@
+[
+ {"name":"g1_常规小货","goods":{"weight_kg":25,"length_cm":60,"width_cm":40,"height_cm":50,"volume_cbm":0.24,"piece_count":2,"item_names":["普通品"],"address_type":"FBA","postcode":"","dim_divisor":5000},"order":{"channel":"全美快递派","service":"","tax_mode":"包税","declared_value":0}},
+ {"name":"g2_超重","goods":{"weight_kg":25,"length_cm":60,"width_cm":40,"height_cm":50,"volume_cbm":0.72,"piece_count":6,"item_names":["普通品"],"address_type":"FBA","postcode":"","dim_divisor":5000},"order":{"channel":"全美快递派","service":"","tax_mode":"包税","declared_value":0}},
+ {"name":"g3_超长+报关","goods":{"weight_kg":25,"length_cm":130,"width_cm":60,"height_cm":50,"volume_cbm":0.78,"piece_count":2,"item_names":["普通品"],"address_type":"FBA","postcode":"B1 1AA","dim_divisor":5000},"order":{"channel":"英国空铁海","service":"单独报关","tax_mode":"包税","declared_value":5000}},
+ {"name":"g4_品名超5","goods":{"weight_kg":25,"length_cm":60,"width_cm":40,"height_cm":50,"volume_cbm":0.24,"piece_count":2,"item_names":["品1","品2","品3","品4","品5","品6"],"address_type":"FBA","postcode":"","dim_divisor":5000},"order":{"channel":"全美快递派","service":"","tax_mode":"包税","declared_value":0}},
+ {"name":"g5_申报价值","goods":{"weight_kg":25,"length_cm":60,"width_cm":40,"height_cm":50,"volume_cbm":0.24,"piece_count":2,"item_names":["普通品"],"address_type":"FBA","postcode":"","dim_divisor":5000},"order":{"channel":"美森海派","service":"","tax_mode":"不包税","declared_value":5000}},
+ {"name":"g6_大货派送","goods":{"weight_kg":25,"length_cm":60,"width_cm":40,"height_cm":50,"volume_cbm":0.36,"piece_count":3,"item_names":["普通品"],"address_type":"FBA","postcode":"","dim_divisor":5000},"order":{"channel":"全美快递派","service":"","tax_mode":"包税","declared_value":0}}
+]
