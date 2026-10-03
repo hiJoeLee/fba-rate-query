@@ -1031,18 +1031,38 @@ function showSuggest(t,note,warn){
   hint.className='unit hit'+(warn?' warn':'');
   hint.innerHTML='建议选择「'+esc(t)+'」：'+esc(note)+' <a class="use" onclick="applyType(\''+t+'\')">采用</a>';
 }
+function showSuggestMulti(hits){
+  const hint=$c('c_gname_hint'); if(!hint) return;
+  hint.className='unit hit';
+  hint.innerHTML='命中多个分类：'+hits.map(function(h){
+    return '「'+esc(h.t)+'」<a class="use" onclick="applyType(\''+h.t+'\')">采用</a>';
+  }).join('，')+'（混装建议按最高类别申报，实际以业务确认为准）';
+}
 function suggestType(){
   const el=$c('c_gname'), hint=$c('c_gname_hint');
-  const name=el?el.value.trim():'';
-  if(!name){ if(hint){ hint.className='unit'; hint.textContent='选填，输入后给出分类建议'; } return; }
-  const lower=name.toLowerCase();
+  const raw=el?el.value.trim():'';
+  if(!raw){ if(hint){ hint.className='unit'; hint.textContent='选填，输入后给出分类建议'; } return; }
+  /* 混装支持：逗号/顿号/分号分隔多名称，逐词匹配，带电敏感优先 */
+  const words=raw.split(/[,，、;；]/).map(function(w){return w.trim();}).filter(function(w){return w;});
   const cn=$c('c_cn')?$c('c_cn').value:'';
-  for(const s of TYPE_HINTS_SENS){ if(lower.indexOf(s)>=0){
-    showSuggest('带电/敏感','含'+s+'等带电/敏感词，实为敏感货时报价风险高，请以业务确认口径为准',true); return;
-  }}
-  const g=TYPE_HINTS[cn];
-  if(g){ for(const t of Object.keys(g)){ for(const k of g[t].keys){ if(lower.indexOf(k)>=0){ showSuggest(t,g[t].note,false); return; } } } }
-  for(const t of Object.keys(TYPE_HINTS_COMMON)){ for(const k of TYPE_HINTS_COMMON[t].keys){ if(lower.indexOf(k)>=0){ showSuggest(t,TYPE_HINTS_COMMON[t].note,false); return; } } }
+  const sens=[];
+  const hits=[], seen={};
+  words.forEach(function(w){
+    const lower=w.toLowerCase();
+    for(const s of TYPE_HINTS_SENS){ if(lower.indexOf(s)>=0){ sens.push(s); return; } }
+    const g=TYPE_HINTS[cn];
+    if(g){ for(const t of Object.keys(g)){ for(const k of g[t].keys){ if(lower.indexOf(k)>=0&&!seen[t]){ seen[t]=1; hits.push({t:t,note:g[t].note}); break; } } } }
+    for(const t of Object.keys(TYPE_HINTS_COMMON)){
+      for(const k of TYPE_HINTS_COMMON[t].keys){
+        if(lower.indexOf(k)>=0&&!seen[t]){ seen[t]=1; hits.push({t:t,note:TYPE_HINTS_COMMON[t].note}); break; }
+      }
+    }
+  });
+  if(sens.length){
+    showSuggest('带电/敏感','含'+sens.join('、')+'等带电/敏感词，实为敏感货时报价风险高，请以业务确认口径为准',true); return;
+  }
+  if(hits.length===1){ showSuggest(hits[0].t,hits[0].note,false); return; }
+  if(hits.length>1){ showSuggestMulti(hits); return; }
   hint.className='unit miss';
   hint.textContent='未收录该货物分类，请先咨询业务确认后再选择';
 }
