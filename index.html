@@ -403,6 +403,10 @@
     padding:8px 10px;font-size:13px;font-family:var(--sans);outline:none;transition:border-color .15s,box-shadow .15s}
   .gitem input:focus,.gitem select:focus{border-color:var(--acc);box-shadow:0 0 0 2px rgba(224,123,31,.12)}
   .gitem .unit{font-size:10px;color:var(--ink3);margin-top:3px;font-family:var(--mono)}
+  .gitem .unit.hit{color:var(--ok)}
+  .gitem .unit.hit.warn{color:#b45309}
+  .gitem .unit.miss{color:#b91c1c}
+  .gitem .unit .use{color:var(--acc);text-decoration:underline;cursor:pointer;font-family:var(--mono)}
   .cbar-btm{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:12px;flex-wrap:wrap}
   .cvol{font-family:var(--mono);font-size:12px;color:var(--acc2);background:#fff6e6;border:1px solid #f2c879;
     border-radius:8px;padding:6px 12px;margin-top:10px;display:flex;gap:18px;flex-wrap:wrap}
@@ -585,6 +589,7 @@
           <div class="gitem"><label>高 <b>*</b> cm</label><input id="c_hgt" type="number" placeholder="如 50" min="0"><div class="unit">单件高（必填）</div></div>
           <div class="gitem"><label>单件重量 <b>*</b> kg</label><input id="c_wgt" type="number" placeholder="如 25" min="0"><div class="unit">单件实重（必填）</div></div>
           <div class="gitem"><label>件数</label><input id="c_pcs" type="number" placeholder="如 2" min="1"><div class="unit">本票件数</div></div>
+          <div class="gitem"><label>货物名称</label><input id="c_gname" type="text" placeholder="如 手机壳/充电宝"><div class="unit" id="c_gname_hint">选填，输入后给出分类建议</div></div>
           <div class="gitem"><label>货物类型</label><select id="c_type"></select><div class="unit" id="c_type_note">普货/带电等</div></div>
         </div>
       </div>
@@ -866,9 +871,10 @@ function updateVol(){
 }
 /* 重置：清空输入、恢复默认值、清结果（方便查下一个运价） */
 function resetCalc(){
-  ['c_len','c_wid','c_hgt','c_wgt','c_pcs','c_zip'].forEach(function(id){
+  ['c_len','c_wid','c_hgt','c_wgt','c_pcs','c_zip','c_gname'].forEach(function(id){
     const el=$c(id); if(el) el.value='';
   });
+  const hint=$c('c_gname_hint'); if(hint){ hint.className='unit'; hint.textContent='选填，输入后给出分类建议'; }
   const cn=$c('c_cn'); if(cn){ cn.value=''; fillType(); }
   const city=$c('c_city'); if(city) city.value='';
   const addr=$c('c_addr'); if(addr) addr.value='FBA';
@@ -993,6 +999,53 @@ const TYPE_NOTE={
   '墨西哥B类':'电器电子类（如灯具、耳机、音响、充电器、电钻，需认证电子产品）',
   '墨西哥C类':'纺织品类（如服装、鞋子、手套、布匹、窗帘、枕头）'
 };
+/* 货物名称 → 分类建议词典（轻量版，源自供应商价格表分类定义）。
+   匹配顺序：带电/敏感风险词优先 → 目的国专属分类 → 通用分类；
+   命中给建议、客户采用后可改；未命中提示咨询业务。完善版由市场维护映射，后端 B 阶段接入。 */
+const TYPE_HINTS={
+  '巴西':{
+    '一类':{keys:['电动','音响','音箱','排插','led','灯','光电','文具'],note:'电动产品/文具/光电类'},
+    '二类':{keys:['电脑','主板','显示器','打印机','电钻','摩汽','汽车配件','机械','设备','仪器'],note:'设备仪器/摩汽配件/机械工具类'},
+    '三类':{keys:['智能手表','手表','手机','配件','高价值','贵重'],note:'智能手表/手机配件/高价值仪器类'},
+    '四类':{keys:['服装','衣服','成衣','内衣','童装','男装','女装','服饰','裤','袜'],note:'个人服饰类'}
+  },
+  '墨西哥':{
+    '墨西哥A类':{keys:['塑料','杯','瓶','行李箱','箱包','手机壳','保护膜','数据线','汽车配件','日用','百货','硅胶','pvc','人造皮革'],note:'塑料/箱包/日用百货类'},
+    '墨西哥B类':{keys:['电器','电子','灯具','led','行车记录仪','耳机','音响','加湿器','监控','摄像','玩具','充电器','收音机','电钻'],note:'电器电子类（需认证）'},
+    '墨西哥C类':{keys:['纺织','服装','鞋','手套','皮革','帽子','布匹','窗帘','枕','记忆棉'],note:'纺织品类'}
+  }
+};
+const TYPE_HINTS_COMMON={
+  '普货':{keys:['厨房','厨具','餐具','五金','工具','宠物','家居','日用品','办公','纸箱','收纳','装饰'],note:'厨房/个人/工具家具类'},
+  '纺织品':{keys:['纺织','服装','鞋','手套','帽','布','窗帘','枕'],note:'纺织品类'}
+};
+const TYPE_HINTS_SENS=['电池','充电宝','锂电池','磁铁','液体','膏体','粉末','香水','酒精','喷雾','化妆品','带电','敏感'];
+function applyType(t){
+  const ty=$c('c_type'); if(!ty) return;
+  const opts=Array.prototype.slice.call(ty.options).map(function(o){return o.value;});
+  if(opts.indexOf(t)<0){ alert('当前目的国不可选该分类：'+t+'（换目的国后重试）'); return; }
+  ty.value=t; updTypeNote();
+}
+function showSuggest(t,note,warn){
+  const hint=$c('c_gname_hint'); if(!hint) return;
+  hint.className='unit hit'+(warn?' warn':'');
+  hint.innerHTML='建议选择「'+esc(t)+'」：'+esc(note)+' <a class="use" onclick="applyType(\''+t+'\')">采用</a>';
+}
+function suggestType(){
+  const el=$c('c_gname'), hint=$c('c_gname_hint');
+  const name=el?el.value.trim():'';
+  if(!name){ if(hint){ hint.className='unit'; hint.textContent='选填，输入后给出分类建议'; } return; }
+  const lower=name.toLowerCase();
+  const cn=$c('c_cn')?$c('c_cn').value:'';
+  for(const s of TYPE_HINTS_SENS){ if(lower.indexOf(s)>=0){
+    showSuggest('带电/敏感','含'+s+'等带电/敏感词，实为敏感货时报价风险高，请以业务确认口径为准',true); return;
+  }}
+  const g=TYPE_HINTS[cn];
+  if(g){ for(const t of Object.keys(g)){ for(const k of g[t].keys){ if(lower.indexOf(k)>=0){ showSuggest(t,g[t].note,false); return; } } } }
+  for(const t of Object.keys(TYPE_HINTS_COMMON)){ for(const k of TYPE_HINTS_COMMON[t].keys){ if(lower.indexOf(k)>=0){ showSuggest(t,TYPE_HINTS_COMMON[t].note,false); return; } } }
+  hint.className='unit miss';
+  hint.textContent='未收录该货物分类，请先咨询业务确认后再选择';
+}
 /* 货物类型按国家联动：全部国家→通用货型（≥2国出现）；选定国家→通用+该国专属 */
 function fillType(){
   const cn=$c('c_cn'), ty=$c('c_type');
@@ -1014,7 +1067,7 @@ function updTypeNote(){
   const ty=$c('c_type'), note=$c('c_type_note');
   if(!note) return;
   const v=ty?ty.value:'';
-  if(v){ note.textContent=TYPE_NOTE[v]||v; return; }
+  if(v){ note.textContent=TYPE_NOTE[v]+'（分类由客户确认，可能影响匹配与实际报价）'; return; }
   note.textContent=(ty&&ty.options.length>1)?'按目的国显示可发货物类型':'普货/带电等';
 }
 /* 初始化计算视图下拉（国家/货物类型从真实 DATA 生成） */
@@ -1056,6 +1109,8 @@ function updTypeNote(){
     const el=$c(id); if(el) el.addEventListener('keydown',function(e){ if(e.key==='Enter') calcRun(); });
     if(el) el.addEventListener('input', updateVol);
   });
+  const gn=$c('c_gname');
+  if(gn) gn.addEventListener('input', suggestType);
   updateVol();
   /* 可收货城市下拉：页面加载即填充（CITY_LIST 定义在本脚本后半段，
      用 setTimeout 等脚本整体执行完，不依赖首次点计算） */
