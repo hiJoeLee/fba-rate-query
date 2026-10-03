@@ -453,11 +453,22 @@
   .cm-fee .sub{font-size:11px;color:var(--ink3);margin-top:2px}
   .c-detail{display:none;border-top:1px dashed var(--line);margin-top:10px;padding-top:10px}
   .card.open .c-detail{display:block}
+  .c-acts{display:flex;gap:16px;margin-top:10px;flex-wrap:wrap}
   .c-btn{background:none;border:none;color:var(--ink2);font-size:12px;cursor:pointer;padding:4px 0;
     font-family:var(--mono);letter-spacing:.05em;display:inline-flex;align-items:center;gap:5px}
   .c-btn:hover{color:var(--acc)}
   .c-btn .ar{display:inline-block;transition:transform .18s}
-  .card.open .c-btn .ar{transform:rotate(90deg)}
+  .card.open .c-btn.cb-detail .ar{transform:rotate(90deg)}
+  .card.b-open .c-btn.cb-basis .ar{transform:rotate(90deg)}
+  .c-basis{display:none;border-top:1px dashed var(--line);margin-top:10px;padding-top:10px}
+  .card.b-open .c-basis{display:block}
+  .c-basis .b-price{margin-bottom:6px}
+  .c-basis .b-info{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:2px 16px;margin:10px 0;font-size:12.5px}
+  .c-basis .b-row{display:flex;gap:8px;line-height:1.75}
+  .c-basis .b-row .k{flex:none;color:var(--ink3);font-family:var(--mono);font-size:11px;letter-spacing:.04em;width:64px}
+  .c-basis .b-row .v{color:var(--ink);word-break:break-word}
+  .c-basis .b-notes{border-top:1px dashed var(--line);margin-top:8px;padding-top:8px}
+  .c-basis .b-empty{color:var(--ink3);font-size:12px;padding:8px 0}
   table.c-tbl{width:100%;border-collapse:collapse;table-layout:fixed;font-size:12.5px}
   table.c-tbl col.c1{width:24%} table.c-tbl col.c2{width:34%} table.c-tbl col.c3{width:12%} table.c-tbl col.c4{width:30%}
   table.c-tbl th{text-align:left;font-size:10px;letter-spacing:.1em;color:var(--ink3);font-family:var(--mono);
@@ -964,17 +975,46 @@ function renderCalc(all, total){
       +'<div class="cm-fee"><div class="k">附加费</div><div class="v">'+q.scs.filter(function(s){return s.status==='hit';}).length+' 项命中</div><div class="sub">'+(q.nq?'含需单询项':(q.pendingCount?'含待确认项':'全部可算'))+'</div></div>'
       +'<div class="cm-fee total"><div class="k">合计（'+esc(q.main.currency||'币种待标')+'）</div><div class="v">'+fmtN(q.total)+'</div><div class="sub">主运费+加价+附加费</div></div>'
       +'</div>'
-      +'<button class="c-btn" onclick="toggleCalc('+i+')"><span class="ar">▸</span>附加费明细</button>'
+      +'<div class="c-acts">'
+      +'<button class="c-btn cb-detail" onclick="toggleCalc('+i+')"><span class="ar">▸</span>附加费明细</button>'
+      +'<button class="c-btn cb-basis" onclick="toggleBasis('+i+')"><span class="ar">▸</span>主运价依据</button></div>'
       +'<div class="c-detail"><table class="c-tbl"><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup>'
       +'<thead><tr><th>附加费项</th><th>计算依据</th><th>状态</th><th style="text-align:right">金额</th></tr></thead>'
       +'<tbody>'+rows+'</tbody></table>'
       +'<div class="cwhy"><b>说明</b>：规则来自 61 条附加费规则（v2_mapping_61.json）；待人工确认（manual_check）不产金额、显示"待确认"；参数待核 / 规则待定 / 人工单询在触发命中时标记"需单询"。</div>'
-      +'</div></div></div>';
+      +'</div>'
+      +'<div class="c-basis">'+basisHtml(c)+'</div></div></div>';
   }).join('');
 }
 function toggleCalc(i){
   const cards=document.querySelectorAll('#calc-list .card');
   if(cards[i]) cards[i].classList.toggle('open');
+}
+function toggleBasis(i){
+  const cards=document.querySelectorAll('#calc-list .card');
+  if(cards[i]) cards[i].classList.toggle('b-open');
+}
+/* 主运价依据：档位价格 + 运价信息 + 渠道备注（__FBA_NOTES__ 复用查询页备注组件） */
+function basisHtml(c){
+  const pr=Object.keys(c.价格||{});
+  const priceHtml=pr.length
+    ?'<table class="c-tbl"><colgroup><col style="width:40%"><col style="width:60%"></colgroup>'
+    +'<thead><tr><th>档位</th><th style="text-align:right">单价（'+esc(c.货币||'RMB')+'/'+esc(c.单位||'')+'）</th></tr></thead>'
+    +'<tbody>'+pr.map(function(k){return '<tr><td>'+esc(k)+'</td><td class="money">'+fmtN(c.价格[k])+'</td></tr>';}).join('')+'</tbody></table>'
+    :'<div class="b-empty">无档位价格</div>';
+  const fields=[
+    ['文件',c.文件],['来源表',c.来源表名],['来源行号',c.来源行号],['区间',c.区间],['国家',c.国家],
+    ['运输方式',c.运输方式],['交货地',c.交货地],['交货仓库',c.交货仓库],['货物类型',c.货物类型],
+    ['可收货城市',(c.可收货城市||[]).join('、')],['FBA仓库',c.FBA仓库],['是否包税',c.是否包税],
+    ['开始时间',c.开始时间],['货柜容量',c.货柜容量],['时效',c.时效]
+  ].filter(function(f){ return f[1]!==undefined && f[1]!==null && f[1]!==''; });
+  const infoHtml=fields.map(function(f){
+    return '<div class="b-row"><span class="k">'+esc(f[0])+'</span><span class="v">'+esc(f[1])+'</span></div>';
+  }).join('');
+  const notes=notesHtml(c.供应商代码||'', c.来源表名||'');
+  return '<div class="b-price">'+priceHtml+'</div>'
+    +(infoHtml?'<div class="b-info">'+infoHtml+'</div>':'')
+    +(notes?'<div class="b-notes">'+notes+'</div>':'');
 }
 
 /* ── 标签切换（运价查询 / 运费计算，原功能不受影响） ── */
