@@ -533,6 +533,8 @@
   .ad-fold{cursor:pointer;margin-left:auto;font-size:11px;color:var(--acc2);font-weight:600;
     border:1px solid var(--line2);border-radius:6px;padding:1px 7px;flex:none}
   .ad-fold:hover{background:var(--panel2);border-color:var(--acc)}
+  .ad-covtip{font-size:11px;color:var(--ink3);line-height:1.5;margin-bottom:8px;padding:6px 8px;
+    background:var(--panel2);border-radius:6px}
   .ad-cov{margin-bottom:10px;padding:7px 10px;font-size:11.5px;color:#8d2c24;background:#fdf3f1;
     border:1px solid rgba(192,57,43,.35);border-left:3px solid #c0392b;border-radius:8px;cursor:pointer}
   .ad-cov:hover{background:#fbe9e5}
@@ -1294,9 +1296,9 @@ function openAdminDrawer(key){
     +(function(){
       /* 抽全度提示：备注中带附加费特征词、但已建规则池没有对应语义 → 疑似漏抽，提示人工补 */
       const miss=admMissWords(notes, rules);
-      if(!miss.length) return '';
-      return '<div class="ad-cov" onclick="admShowMiss('+JSON.stringify(miss).replace(/"/g,'&quot;')+')" title="点击高亮左侧对应备注">'
-        +'疑似漏抽 <b>'+miss.length+'</b> 条附加费条款（备注有、规则未覆盖）→ 点击查看</div>';
+      return '<div class="ad-covtip">备注为渠道报价单原文；未写入备注的附加费（口头约定/临时费）请用"新增规则"人工补充</div>'
+        +(miss.length?'<div class="ad-cov" onclick="admShowMiss('+JSON.stringify(miss).replace(/"/g,'&quot;')+')" title="点击高亮左侧对应备注">'
+        +'疑似漏抽 <b>'+miss.length+'</b> 条附加费条款（备注有、规则未覆盖）→ 点击查看</div>':'');
     })()
     +'<button class="ad-new" onclick="adminRuleNew(\''+ttl+'\')">＋ 新增规则（人工补充遗漏项）</button>'
     +(rules.length?rules.map(function(r){
