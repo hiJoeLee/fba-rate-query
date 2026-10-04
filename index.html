@@ -607,6 +607,13 @@
   .ad-form label{font-size:10.5px;color:var(--ink3)}
   .ad-form input{padding:4px 8px;font-size:12px;border:1px solid var(--line2);border-radius:6px;background:var(--bg);color:var(--ink1)}
   .ad-form input.wide{grid-column:1/-1}
+  /* 编辑视图：右栏全宽切换（不再内联进窄卡片） */
+  .ad-editor{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .ed-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;
+    font-size:13px;font-weight:700;color:var(--ink1);border-bottom:1px dashed var(--line);padding-bottom:10px;flex-wrap:wrap;gap:6px}
+  .ed-head .alink{font-weight:600;font-size:11.5px}
+  .ad-form .cond-join,.ad-form .cond-preview,.ad-form .cond-old{grid-column:1/-1}
+  .ad-form select{padding:4px 6px;font-size:12px;border:1px solid var(--line2);border-radius:6px;background:var(--bg);color:var(--ink1)}
   .ad-empty{color:var(--ink3);font-size:12px;padding:20px 0;text-align:center}
   @media (max-width:640px){
     .tabs{margin-top:4px}
@@ -1453,7 +1460,7 @@ function openAdminDrawer(key){
       const manualRules=effKey.rules.filter(function(x){ return !rules.some(function(s){ return s.name===x.name; }); });
       if(manualRules.length){
         s+='<div class="col-t" style="margin-top:14px">人工新增规则<span class="cnt">'+manualRules.length+' 条</span></div>';
-        s+=manualRules.map(function(r){
+        s+=manualRules.map(function(r,i){
           return '<div class="ad-rule'+(r.eff?' eff':'')+'"><div class="r-top">'
             +'<span class="r-idx">M'+(i+1)+'</span>'
             +'<span class="r-name">'+esc(r.name)+'</span>'
@@ -1692,19 +1699,15 @@ function renderAdminForm(key, name, isNew){
     +'<div class="f wide" style="display:flex;gap:10px;margin-top:4px">'
     +'<span class="alink" onclick="adminRuleSave(\''+ttl+'\','+(isNew?'true':'false')+')">保存</span>'
     +'<span class="alink" onclick="openAdminDrawer(\''+ttl+'\')">取消</span></div></div>';
-  if(isNew){
-    const head=document.querySelector('#adm-drawer .ad-col:last-child .col-t');
-    if(head) head.insertAdjacentHTML('afterend', form);
-  }else{
-    /* 用名字直接匹配卡片 */
-    Array.prototype.forEach.call(document.querySelectorAll('#adm-drawer .ad-rule'),function(el){
-      const nm=el.querySelector('.r-name');
-      if(nm && nm.textContent===name){
-        el.querySelector('.r-ops').style.display='none';
-        el.insertAdjacentHTML('beforeend', form);
-      }
-    });
-  }
+  const col=document.querySelector('#adm-drawer .ad-col:last-child');
+  if(!col) return;
+  const srcIdx=SRC.findIndex(function(x){ return x.supplier===list.sup && x.name===name; });
+  const tag=isNew?'新增规则':(srcIdx>=0?'编辑规则 · R'+(srcIdx+1)+' '+esc(hit?hit.name:name):'编辑规则 · '+esc(hit?hit.name:name));
+  col.innerHTML='<div class="ad-editor">'
+    +'<div class="ed-head"><span>'+tag+'</span>'
+    +'<span class="alink" onclick="openAdminDrawer(\''+ttl+'\')">返回规则列表</span></div>'
+    +form
+    +'</div>';
   /* 回填条件行（结构化优先；旧文本不回填，保留为"原说明"） */
   const initConds=(hit&&hit.conds&&hit.conds.length)?hit.conds:[{f:'货物名称',op:'包含',v:''}];
   initConds.forEach(function(c){ rfCondAdd(c.f,c.op,c.v); });
