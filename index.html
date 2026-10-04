@@ -514,6 +514,15 @@
   .admbar .fitem label{font-size:12px;color:var(--ink3);white-space:nowrap}
   .achint{font-size:11.5px;color:var(--ink3);margin-top:10px;line-height:1.6;word-break:break-all}
   .adm-list{display:flex;flex-direction:column;gap:8px}
+  /* 通用规则（燃油附加费等行业通用，独立于来源表） */
+  .adm-gen{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin-bottom:10px}
+  .gen-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .gen-name{font-weight:700;font-size:12.5px;color:var(--ink1)}
+  .gen-tag{font-size:10.5px;color:var(--acc2);background:rgba(224,123,31,.12);padding:1px 6px;border-radius:4px}
+  .gen-sum{font-size:11.5px;color:var(--ink2);font-family:var(--mono)}
+  .gen-ops{margin-left:auto;display:flex;gap:12px;align-items:center}
+  .adm-gen .ad-form label{flex-direction:row;display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--ink1)}
+  .adm-gen .ad-form input[type=radio],.adm-gen .ad-form input[type=checkbox]{width:auto;accent-color:var(--acc)}
   .adm-row{display:flex;align-items:center;gap:12px;background:var(--panel);border:1px solid var(--line);
     border-radius:12px;padding:10px 14px;cursor:pointer;transition:border-color .15s}
   .adm-row:hover{border-color:var(--acc)}
@@ -786,6 +795,7 @@
       </div>
       <div class="achint">点击渠道记录展开核对：左侧为源表备注中的附加费条款，右侧为规则引擎匹配/生成的规则；核对后可编辑、新增、删除并确认生效（当前存本地，后续接入查询页计算与后端规则库）。</div>
     </section>
+    <div class="adm-gen" id="adm-gen"></div>
     <div class="adm-list" id="adm-list"></div>
     <div class="adm-mask" id="adm-mask" style="display:none" onclick="closeAdminDrawer()"></div>
     <aside class="adm-drawer" id="adm-drawer" style="display:none"></aside>
@@ -1336,7 +1346,7 @@ function admRender(){
     if(fSt==='none' && ec.length) return false;
     return true;
   });
-  if(!arr.length){ $c('adm-list').innerHTML='<div class="c-emptynote">无符合条件的来源表记录</div>'; return; }
+  if(!arr.length){ $c('adm-list').innerHTML='<div class="c-emptynote">无符合条件的来源表记录</div>'; renderAdmGen(); return; }
   $c('adm-list').innerHTML=arr.map(function(s){
     const ec=(effAll[s.key]||{}).rules||[];
     const effCnt=ec.filter(function(x){ return x.eff; }).length;
@@ -1356,6 +1366,77 @@ function admRender(){
       +(rules.length?'<span class="mk">规则 '+hitCnt+'/'+rules.length+' 命中'+(pendCnt?'（待核 '+pendCnt+'）':'')+'</span>':'')
       +st+'</span></div>';
   }).join('');
+  renderAdmGen();
+}
+/* ===== 通用规则（燃油附加费等行业通用，独立于来源表，全局生效） =====
+   数据结构 fba_admin_gen_v1: { fuel:{ eff, mode:'pct'|'unit', pct, unitAmt, unitPer:'KG'|'CBM', excludeIncluded } }
+   查询页计费引擎接入约定：通用规则对所有渠道全局叠加；excludeIncluded=true 时，
+   备注含"含油/已含"或规则库存在 included 标记的渠道不叠加。 */
+const ADM_GEN_KEY='fba_admin_gen_v1';
+let ADM_GEN_EDIT=false;
+function admGenGet(){
+  try{ return JSON.parse(localStorage.getItem(ADM_GEN_KEY)||'null')||{}; }catch(e){ return {}; }
+}
+function admGenSet(g){ localStorage.setItem(ADM_GEN_KEY, JSON.stringify(g)); }
+function admGenFuel(){
+  const g=admGenGet();
+  return g.fuel||{eff:false,mode:'pct',pct:8,unitAmt:1.5,unitPer:'KG',excludeIncluded:true};
+}
+function renderAdmGen(){
+  const box=$c('adm-gen'); if(!box) return;
+  const fuel=admGenFuel();
+  if(ADM_GEN_EDIT){
+    box.innerHTML='<div class="ad-editor">'
+      +'<div class="ed-head"><span>编辑通用规则 · 燃油附加费（行业通用）</span>'
+      +'<span class="alink" onclick="ADM_GEN_EDIT=false;renderAdmGen()">返回规则列表</span></div>'
+      +'<div class="ad-form">'
+      +'<div class="f wide"><label>启用状态</label><label><input type="checkbox" id="gf_eff"'+(fuel.eff?' checked':'')+'> 启用（查询页计费时全局叠加该燃油费）</label></div>'
+      +'<div class="f wide"><label>计费形态</label>'
+      +'<label><input type="radio" name="gf_mode" value="pct"'+(fuel.mode==='pct'?' checked':'')+' onchange="rfGenMode()"> 按主运费百分比</label>'
+      +'<label><input type="radio" name="gf_mode" value="unit"'+(fuel.mode==='unit'?' checked':'')+' onchange="rfGenMode()"> 按计费重单价</label></div>'
+      +'<div class="f" id="gf_pctf"><label>燃油费率</label><input id="gf_pct" type="number" min="0" step="0.1" value="'+(fuel.pct||0)+'" style="width:110px"> <span style="font-size:12px;color:var(--ink2)">%</span></div>'
+      +'<div class="f" id="gf_unitf" style="display:none"><label>单价</label><input id="gf_unitamt" type="number" min="0" step="0.1" value="'+(fuel.unitAmt||0)+'" style="width:110px"> 元/<select id="gf_unitper" style="width:88px"><option value="KG"'+(fuel.unitPer==='KG'?' selected':'')+'>KG</option><option value="CBM"'+(fuel.unitPer==='CBM'?' selected':'')+'>CBM</option></select></div>'
+      +'<div class="f wide"><label>适用渠道</label><label><input type="checkbox" id="gf_excl"'+(fuel.excludeIncluded?' checked':'')+'> 排除已含油渠道（备注含"含油/已含"或带"已含"标记的渠道不叠加，避免重复收费）</label></div>'
+      +'<div class="f wide" style="display:flex;gap:10px;margin-top:6px">'
+      +'<button class="ad-new" style="width:auto;padding:6px 24px;background:var(--acc);color:#fff;border:none;border-radius:6px;cursor:pointer;font-weight:600" onclick="admGenSave()">保存</button>'
+      +'<button class="ad-new" style="width:auto;padding:6px 18px;background:var(--bg);color:var(--ink2);border:1px solid var(--line2);border-radius:6px;cursor:pointer" onclick="ADM_GEN_EDIT=false;renderAdmGen()">取消</button>'
+      +'</div></div></div>';
+    rfGenMode();
+    return;
+  }
+  const sum=fuel.mode==='pct'
+    ? '主运费 × '+(Number(fuel.pct||0)/100)+'（'+(fuel.pct||0)+'%）'
+    : '＋'+(fuel.unitAmt||0)+'元/'+(fuel.unitPer||'KG');
+  box.innerHTML='<div class="gen-row">'
+    +'<span class="gen-name">燃油附加费</span><span class="gen-tag">行业通用</span>'
+    +'<span class="badge '+(fuel.eff?'b-eff':'b-none')+'">'+(fuel.eff?'启用':'停用')+'</span>'
+    +'<span class="gen-sum">'+sum+(fuel.excludeIncluded?' · 排除已含油渠道':'')+'</span>'
+    +'<span class="gen-ops">'
+    +'<span class="alink" onclick="ADM_GEN_EDIT=true;renderAdmGen()">编辑</span>'
+    +'<span class="alink" onclick="admGenToggle()">'+(fuel.eff?'停用':'启用')+'</span>'
+    +'</span></div>';
+}
+function rfGenMode(){
+  const m=(document.querySelector('input[name=gf_mode]:checked')||{}).value||'pct';
+  const pf=document.getElementById('gf_pctf'), uf=document.getElementById('gf_unitf');
+  if(pf) pf.style.display=m==='pct'?'':'none';
+  if(uf) uf.style.display=m==='unit'?'':'none';
+}
+function admGenToggle(){
+  const g=admGenGet(); const f=admGenFuel(); f.eff=!f.eff; g.fuel=f; admGenSet(g); renderAdmGen();
+}
+function admGenSave(){
+  const g=admGenGet();
+  const mode=(document.querySelector('input[name=gf_mode]:checked')||{}).value||'pct';
+  g.fuel={
+    eff:document.getElementById('gf_eff').checked,
+    mode:mode,
+    pct:parseFloat(document.getElementById('gf_pct').value)||0,
+    unitAmt:parseFloat(document.getElementById('gf_unitamt').value)||0,
+    unitPer:document.getElementById('gf_unitper').value,
+    excludeIncluded:document.getElementById('gf_excl').checked
+  };
+  admGenSet(g); ADM_GEN_EDIT=false; renderAdmGen();
 }
 function openAdminDrawer(key){
   /* 来源表级抽屉：key=供应商│来源表（附加费挂来源表，渠道共享同一套备注与规则） */
