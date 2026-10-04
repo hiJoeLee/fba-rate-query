@@ -501,6 +501,7 @@
   .sstat.zero{background:#f1f2f4;color:var(--ink3)}
   .sstat.pending{background:#eef3fb;color:var(--ink2)}
   .sstat.nq{background:#fff6e6;color:var(--acc2)}
+  .sstat.excluded{background:#eef1f4;color:var(--ink3);border:1px dashed var(--line2)}
   .cwhy{font-size:11px;color:var(--ink3);margin-top:6px;line-height:1.5;word-break:break-all}
   .cwhy b{color:var(--ink2);font-weight:600}
   .c-emptynote{background:var(--panel);border:1px dashed var(--line2);border-radius:14px;padding:34px 20px;
@@ -1094,6 +1095,25 @@ function calcRun(){
       const res=scEvalRule(x,g,o);
       return {name:res.rule,status:res.status,amount:res.amount,reason:res.reason};
     });
+    /* 通用规则：燃油附加费（全局，行业通用，独立于来源表）
+       excludeIncluded=true 时：备注含"含油/已含"或规则库存在 included 标记的渠道不叠加，显示"已含油" */
+    const gfuel=admGenFuel();
+    if(gfuel.eff){
+      const notesTxt=admNotes(r.供应商代码, r.来源表名||'').map(function(n){ return n.text||''; }).join(' ');
+      const hasIncluded=/含油|已含/.test(notesTxt);   /* 按当前来源表备注判定，不按供应商级 included 规则（会误伤同供应商其他表） */
+      if(gfuel.excludeIncluded && hasIncluded){
+        scs.push({name:'燃油费（通用）',status:'excluded',amount:0,reason:'已含油渠道（备注含"含油/已含"或带已含标记），不叠加燃油费',rule:'通用'});
+      }else{
+        const amt=gfuel.mode==='pct'
+          ? main.subtotal*gfuel.pct/100
+          : gfuel.unitAmt*(gfuel.unitPer===main.unitW?main.qty:main.rawQty);
+        scs.push({name:'燃油费（通用）',status:'hit',amount:+amt.toFixed(2),
+          reason:gfuel.mode==='pct'
+            ? '主运费 × '+(gfuel.pct||0)+'%（全局通用规则）'
+            : '＋'+(gfuel.unitAmt||0)+'元/'+(gfuel.unitPer||'KG')+' × '+fmtN(main.qty)+' '+esc(main.unitW)+'（全局通用规则）',
+          rule:'通用'});
+      }
+    }
     const hit=scs.filter(function(s){return s.status==='hit';});
     const nq=scs.some(function(s){return s.status==='need_quote';});
     const pendingCount=scs.filter(function(s){return s.pending;}).length;
@@ -1129,8 +1149,8 @@ function renderCalc(all, total){
     const c=q.r;
     const sup=supLabel(c.供应商代码||'');   // 跟随"隐藏供应商"规则：勾选→供应商代码(HP/YC)，取消→真实名
     const rows=q.scs.map(function(s){
-      const st=s.status==='hit'?['hit','命中']:(s.status==='need_quote'?['nq','需单询']:(s.pending?['pending','待确认']:['zero','未命中']));
-      const amt=s.status==='hit'?'<td class="money">+'+fmtN(s.amount)+'</td>':(s.status==='need_quote'?'<td class="money">— 单询</td>':(s.pending?'<td class="money">— 待确认</td>':'<td class="money">0</td>'));
+      const st=s.status==='hit'?['hit','命中']:(s.status==='excluded'?['excluded','已含油']:(s.status==='need_quote'?['nq','需单询']:(s.pending?['pending','待确认']:['zero','未命中'])));
+      const amt=s.status==='hit'?'<td class="money">+'+fmtN(s.amount)+'</td>':(s.status==='excluded'?'<td class="money">0</td>':(s.status==='need_quote'?'<td class="money">— 单询</td>':(s.pending?'<td class="money">— 待确认</td>':'<td class="money">0</td>')));
       return '<tr><td>'+esc(s.name||'')+'</td><td class="cwhy" title="'+esc(s.reason||'')+'">'+esc(s.reason||'')+'</td><td><span class="sstat '+st[0]+'">'+st[1]+'</span></td>'+amt+'</tr>';
     }).join('');
     const tag=q.nq?'<span class="tag quote">需单询</span>':(q.pendingCount?'<span class="tag">待确认</span>':'');
@@ -1153,7 +1173,7 @@ function renderCalc(all, total){
       +'<div class="c-detail"><table class="c-tbl"><colgroup><col class="c1"><col class="c2"><col class="c3"><col class="c4"></colgroup>'
       +'<thead><tr><th>附加费项</th><th>计算依据</th><th>状态</th><th style="text-align:right">金额</th></tr></thead>'
       +'<tbody>'+rows+'</tbody></table>'
-      +'<div class="cwhy"><b>说明</b>：规则来自 61 条附加费规则（v2_mapping_61.json）；待人工确认（manual_check）不产金额、显示"待确认"；参数待核 / 规则待定 / 人工单询在触发命中时标记"需单询"。</div>'
+      +'<div class="cwhy"><b>说明</b>：规则来自 61 条附加费规则（v2_mapping_61.json）＋通用规则（燃油附加费，行业通用，可在运营后台配置）；待人工确认（manual_check）不产金额、显示"待确认"；参数待核 / 规则待定 / 人工单询在触发命中时标记"需单询"；已含油渠道不叠加通用燃油费。</div>'
       +'</div>'
       +'<div class="c-basis">'+basisHtml(c, q.main.tier)+'</div></div></div>';
   }).join('');
