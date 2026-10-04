@@ -1181,8 +1181,42 @@ function switchTab(name){
    生效规则存 localStorage（fba_admin_eff_v1），后续接入查询页计算时合并读取；编辑不回写 parser 规则文件（后端 B 阶段）。 */
 const ADM_EFF_KEY='fba_admin_eff_v1';
 let ADM_CUR_KEY='';
-function admEffGet(){ try{ return JSON.parse(localStorage.getItem(ADM_EFF_KEY)||'{}'); }catch(e){ return {}; } }
+function admEffGet(){
+  let o={};
+  try{ o=JSON.parse(localStorage.getItem(ADM_EFF_KEY)||'{}'); }catch(e){ return {}; }
+  /* v2 迁移（2026-10-04）：附加费挂载粒度=来源表，生效记录 key 由 渠道级→来源表级（同表渠道规则合并，表级优先） */
+  let changed=false;
+  Object.keys(o).forEach(function(k){
+    const parts=String(k).split('│');
+    if(parts.length>=3){
+      const sk=parts[0]+'│'+parts[1];
+      const chRules=(o[k]&&o[k].rules)||[];
+      if(chRules.length){
+        const base=o[sk]||{sup:parts[0], rules:[]};
+        chRules.forEach(function(r){
+          if(!base.rules.some(function(x){ return x.name===r.name; })) base.rules.push(r);
+        });
+        o[sk]=base;
+      }
+      delete o[k]; changed=true;
+    }
+  });
+  if(changed) admEffSet(o);
+  return o;
+}
 function admEffSet(o){ localStorage.setItem(ADM_EFF_KEY, JSON.stringify(o)); }
+function admSupOf(key){ return String(key).split('│')[0]||''; }
+function admSheets(){
+  /* 来源表级聚合：key=供应商│来源表 → {sup, sheet, channels[], qty} */
+  const out={};
+  admChannels().forEach(function(c){
+    const sk=c.sup+'│'+c.sheet;
+    if(!out[sk]) out[sk]={sup:c.sup, sheet:c.sheet, channels:[], qty:0};
+    out[sk].channels.push(c.name);
+    out[sk].qty+=c.qty||0;
+  });
+  return Object.keys(out).map(function(k){ return Object.assign({key:k}, out[k]); });
+}
 let ADM_CH=null, ADM_CH_ARR=null;
 function admChannels(){
   if(ADM_CH_ARR) return ADM_CH_ARR;
@@ -1255,44 +1289,50 @@ function adminRun(){
 function admRender(){
   const fSup=$c('a_sup').value, fSheet=$c('a_sheet').value, fSt=$c('a_status').value;
   const effAll=admEffGet();
-  const arr=admChannels().filter(function(c){
-    if(fSup && c.sup!==fSup) return false;
-    if(fSheet && c.sheet!==fSheet) return false;
-    const ec=(effAll[c.key]||{}).rules||[];
+  /* 来源表级列表：一行=一张来源表（备注/规则均挂在来源表，渠道不再重复） */
+  const arr=admSheets().filter(function(s){
+    if(fSup && s.sup!==fSup) return false;
+    if(fSheet && s.sheet!==fSheet) return false;
+    const ec=(effAll[s.key]||{}).rules||[];
     if(fSt==='eff' && !ec.length) return false;
     if(fSt==='none' && ec.length) return false;
     return true;
   });
-  if(!arr.length){ $c('adm-list').innerHTML='<div class="c-emptynote">无符合条件的渠道记录</div>'; return; }
-  $c('adm-list').innerHTML=arr.map(function(c){
-    const ec=(effAll[c.key]||{}).rules||[];
+  if(!arr.length){ $c('adm-list').innerHTML='<div class="c-emptynote">无符合条件的来源表记录</div>'; return; }
+  $c('adm-list').innerHTML=arr.map(function(s){
+    const ec=(effAll[s.key]||{}).rules||[];
     const effCnt=ec.filter(function(x){ return x.eff; }).length;
     const draftCnt=ec.length-effCnt;
-    const notes=admNotes(c.sup,c.sheet);
-    const rules=admRulesOf(c.sup);
+    const notes=admNotes(s.sup,s.sheet);
+    const rules=admRulesOf(s.sup);
     const redCnt=notes.filter(function(n){ return n.red; }).length;
     const pendCnt=rules.filter(function(r){ return r.rule_status==='rule_pending'||r.rule_status==='param_pending'||r.rule_status==='manual'; }).length;
+    const hitCnt=rules.filter(function(r){ return admRuleHitNotes(r, s.sup, s.sheet).length; }).length;
     const st=effCnt?'<span class="badge b-eff">已生效 '+effCnt+'</span>':(draftCnt?'<span class="badge b-draft">草稿 '+draftCnt+'</span>':'<span class="badge b-none">未生效</span>');
-    return '<div class="adm-row" onclick="openAdminDrawer(\''+admEscKey(c.key)+'\')">'
-      +'<span class="su">'+esc(supLabel(c.sup))+'</span>'
-      +'<span class="sheet">'+esc(c.sheet)+'</span>'
-      +'<span class="ch">'+esc(c.name)+'</span>'
-      +'<span class="meta"><span class="mk">'+c.qty+' 条运价</span>'
+    return '<div class="adm-row" onclick="openAdminDrawer(\''+admEscKey(s.key)+'\')">'
+      +'<span class="su">'+esc(supLabel(s.sup))+'</span>'
+      +'<span class="sheet">'+esc(s.sheet)+'</span>'
+      +'<span class="ch">'+s.channels.length+' 个渠道</span>'
+      +'<span class="meta"><span class="mk">'+s.qty+' 条运价</span>'
       +'<span class="mk">备注 '+notes.length+' 条'+(redCnt?'（红 '+redCnt+'）':'')+'</span>'
-      +(rules.length?'<span class="mk">规则 '+rules.length+' 条'+(pendCnt?'（待核 '+pendCnt+'）':'')+'</span>':'')
+      +(rules.length?'<span class="mk">规则 '+hitCnt+'/'+rules.length+' 命中'+(pendCnt?'（待核 '+pendCnt+'）':'')+'</span>':'')
       +st+'</span></div>';
   }).join('');
 }
 function openAdminDrawer(key){
-  const c=ADM_CH[key]; if(!c) return;
+  /* 来源表级抽屉：key=供应商│来源表（附加费挂来源表，渠道共享同一套备注与规则） */
+  const sheets=admSheets();
+  const sheet=sheets.filter(function(x){ return x.key===key; })[0];
+  if(!sheet) return;
   ADM_CUR_KEY=key;
-  const notes=admNotes(c.sup,c.sheet);
-  const rules=admRulesOf(c.sup);
+  const notes=admNotes(sheet.sup,sheet.sheet);
+  const rules=admRulesOf(sheet.sup);
   const effAll=admEffGet();
-  const effKey=effAll[key]||{sup:c.sup, rules:[]};
+  const effKey=effAll[key]||{sup:sheet.sup, rules:[]};
   const ttl=admEscKey(key);
-  const head='<div class="ad-head"><div class="ad-title"><div class="t">'+esc(supLabel(c.sup))+' · '+esc(c.sheet)+' · '+esc(c.name)+'</div>'
-    +'<div class="s">'+esc(c.country)+' · 单位 '+esc(c.unit)+' · '+c.qty+' 条运价 · 文件 '+esc(maskNames(c.file))+'</div></div>'
+  const firstCh=admChannels().filter(function(c){ return c.sup===sheet.sup&&c.sheet===sheet.sheet; })[0];
+  const head='<div class="ad-head"><div class="ad-title"><div class="t">'+esc(supLabel(sheet.sup))+' · '+esc(sheet.sheet)+'</div>'
+    +'<div class="s">'+sheet.channels.length+' 个渠道 · 运价合计 '+sheet.qty+' 条 · 文件 '+esc(maskNames(firstCh?firstCh.file:''))+'</div></div>'
     +'<div class="ad-x" onclick="closeAdminDrawer()">✕</div></div>';
   const left='<div class="ad-col l" id="adm-col-l"><div class="col-t">源表备注附加费条款<span class="cnt">'+notes.length+' 条'+(notes.some(function(n){ return n.red; })?' · 红色为风险条款':'')+'</span>'
     +'<span class="ad-fold" id="adm-fold" onclick="adColToggle()" title="收起/展开备注列">◀</span></div>'
@@ -1302,7 +1342,7 @@ function openAdminDrawer(key){
       /* 按来源表挂载：命中当前表备注（原文证据）的规则为主区；未命中折叠为"备注未体现" */
       const hitRules=[], missRules=[];
       rules.forEach(function(r){
-        const hits=admRuleHitNotes(r, c.sup, c.sheet);
+        const hits=admRuleHitNotes(r, sheet.sup, sheet.sheet);
         (hits.length?hitRules:missRules).push({r:r,hits:hits});
       });
       /* 抽全度提示：备注中带附加费特征词、但已建规则池没有对应语义 → 疑似漏抽，提示人工补 */
@@ -1464,8 +1504,7 @@ function admShowMiss(list){
 function closeAdminDrawer(){ $c('adm-drawer').style.display='none'; $c('adm-mask').style.display='none'; }
 function adminEffToggle(key, name, on){
   const eff=admEffGet();
-  const c=ADM_CH[key];
-  const list=eff[key]||{sup:c?c.sup:'', rules:[]};
+  const list=eff[key]||{sup:admSupOf(key), rules:[]};
   const hit=list.rules.filter(function(x){ return x.name===name; })[0];
   if(on){
     if(hit){ hit.eff=true; }
@@ -1503,8 +1542,7 @@ function admBillLabel(b){
 }
 function renderAdminForm(key, name, isNew){
   const eff=admEffGet();
-  const c=ADM_CH[key];
-  const list=eff[key]||{sup:c?c.sup:'', rules:[]};
+  const list=eff[key]||{sup:admSupOf(key), rules:[]};
   let hit=null;
   if(!isNew){
     hit=list.rules.filter(function(x){ return x.name===name; })[0];
@@ -1574,7 +1612,7 @@ function adminRuleSave(key, isNew){
   const nm=$c('rf_name'), amt=$c('rf_amt'), u=$c('rf_unit'), p=$c('rf_per'), cd=$c('rf_cond'), bl=$c('rf_bill');
   if(!nm || !nm.value.trim()) return;
   const eff=admEffGet();
-  const list=eff[key]||{sup:(ADM_CH[key]?ADM_CH[key].sup:''), rules:[]};
+  const list=eff[key]||{sup:admSupOf(key), rules:[]};
   const rec={name:nm.value.trim(),
     amount:amt&&amt.value!==''?Number(amt.value):null,
     unit:u?u.value.trim()||'元':'元',
@@ -1600,7 +1638,7 @@ function adminRuleEdit(key, name){ renderAdminForm(key, name, false); }
 function adminRuleNew(key){ renderAdminForm(key, null, true); }
 function adminEffDel(key, name){
   const eff=admEffGet();
-  const list=eff[key]||{sup:(ADM_CH[key]?ADM_CH[key].sup:''), rules:[]};
+  const list=eff[key]||{sup:admSupOf(key), rules:[]};
   list.rules=list.rules.filter(function(x){ return x.name!==name; });
   eff[key]=list; admEffSet(eff); openAdminDrawer(key);
 }
