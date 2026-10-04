@@ -549,6 +549,8 @@
   .ad-rule.eff{border-color:var(--acc);background:#f4fbf7;box-shadow:0 0 0 1px var(--acc) inset}
   .ad-rule .r-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
   .ad-rule .r-name{font-weight:700;color:var(--ink1);font-size:12.5px}
+  .ad-rule .r-idx{font-family:var(--mono);font-size:10px;color:var(--ink3);border:1px solid var(--line2);
+    border-radius:4px;padding:0 4px;margin-right:6px;flex:none}
   .ad-rule .r-unified{font-size:11px;color:var(--ink3)}
   .ad-rule .r-src{font-size:11px;color:var(--ink2);margin-top:6px;line-height:1.5;word-break:break-all;
     background:var(--panel2);padding:6px 8px;border-radius:6px}
@@ -1388,6 +1390,7 @@ function openAdminDrawer(key){
         const effOn=!!(hit&&hit.eff);
         const draft=!!(hit&&!hit.eff);
         return '<div class="ad-rule'+(effOn?' eff':'')+'" data-ri="'+o.ri+'"><div class="r-top">'
+          +'<span class="r-idx">R'+(o.ri+1)+'</span>'
           +'<span class="r-name">'+esc(r.name)+'</span>'
           +'<span class="r-unified">'+esc(r.unified_name||'')+'</span>'
           +admRuleBadge(r)
@@ -1412,6 +1415,7 @@ function openAdminDrawer(key){
           const effOn=!!(hit&&hit.eff);
           const draft=!!(hit&&!hit.eff);
           return '<div class="ad-rule'+(effOn?' eff':'')+'" data-ri="'+o.ri+'"><div class="r-top">'
+            +'<span class="r-idx">R'+(o.ri+1)+'</span>'
             +'<span class="r-name">'+esc(r.name)+'</span>'
             +'<span class="r-unified">'+esc(r.unified_name||'')+'</span>'
             +admRuleBadge(r)
@@ -1435,6 +1439,7 @@ function openAdminDrawer(key){
         s+='<div class="col-t" style="margin-top:14px">人工新增规则<span class="cnt">'+manualRules.length+' 条</span></div>';
         s+=manualRules.map(function(r){
           return '<div class="ad-rule'+(r.eff?' eff':'')+'"><div class="r-top">'
+            +'<span class="r-idx">M'+(i+1)+'</span>'
             +'<span class="r-name">'+esc(r.name)+'</span>'
             +'<span class="r-unified">人工新增</span>'
             +(r.eff?'<span class="badge b-eff">已生效</span>':'<span class="badge b-draft">草稿</span>')
