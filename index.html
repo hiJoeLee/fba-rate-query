@@ -521,28 +521,19 @@
   .ad-head .ad-title .s{font-size:11.5px;color:var(--ink3);margin-top:3px;word-break:break-all}
   .ad-x{cursor:pointer;font-size:20px;color:var(--ink3);line-height:1;padding:4px 6px;border-radius:6px}
   .ad-x:hover{background:var(--line);color:var(--ink1)}
-  .ad-body{flex:1;overflow:auto;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,9fr);gap:0}
+  .ad-body{flex:1;overflow:hidden;display:flex;gap:0}
   .ad-col{padding:14px 12px;overflow:auto}
-  .ad-col.l{border-right:1px solid var(--line)}
+  .ad-col.l{flex:none;width:32%;min-width:56px;max-width:70%;border-right:none}
+  .ad-divider{flex:none;width:6px;cursor:col-resize;position:relative;z-index:2;background:transparent;transition:background .15s}
+  .ad-divider::after{content:'';position:absolute;left:2px;top:0;bottom:0;width:2px;background:var(--line2);border-radius:1px}
+  .ad-divider:hover::after,.ad-divider.active::after{background:var(--acc)}
+  .ad-col:last-child{flex:1;min-width:0}
   .ad-col .col-t{font-size:12.5px;font-weight:700;color:var(--ink1);margin-bottom:10px;display:flex;align-items:center;gap:8px}
   .ad-col .col-t .cnt{font-size:10.5px;color:var(--ink3);font-weight:400}
   .ad-note{font-size:11px;line-height:1.5;color:var(--ink2);padding:6px 8px;border:1px solid var(--line);
     border-radius:8px;margin-bottom:6px;background:var(--panel);word-break:break-all}
   .ad-note.red{border-color:rgba(192,57,43,.4);color:#8d2c24;background:#fdf6f5}
   .ad-note .no{font-size:10px;color:var(--ink3);font-weight:600;margin-right:6px;font-family:var(--mono)}
-  .ad-idx{display:flex;align-items:center;gap:4px;padding:4px 6px;border-radius:6px;margin-bottom:4px;cursor:pointer;
-    font-size:11px;color:var(--ink2);border:1px solid var(--line);background:var(--panel)}
-  .ad-idx:hover{background:var(--panel2);border-color:var(--acc)}
-  .ad-idx.red{border-color:rgba(192,57,43,.45);color:#8d2c24}
-  .ad-idx .no{font-family:var(--mono);font-weight:700;color:var(--ink3);min-width:14px;text-align:center}
-  .ad-idx.red .no{color:#c0392b}
-  .ad-idx .tag{font-size:9px;color:#c0392b;background:#fdeeec;border-radius:4px;padding:1px 4px}
-  .ad-note-detail{margin-bottom:10px;border:1px solid var(--line);border-left:3px solid var(--acc2);
-    border-radius:8px;background:var(--panel);padding:8px 10px}
-  .ad-note-detail .nd-t{font-size:11.5px;font-weight:700;color:var(--ink1);display:flex;align-items:center;gap:6px;margin-bottom:6px}
-  .ad-note-detail .nd-x{cursor:pointer;color:var(--ink3);margin-left:auto;font-size:14px;line-height:1}
-  .ad-note-detail .nd-x:hover{color:var(--ink1)}
-  .ad-note-detail .nd-b{font-size:12px;line-height:1.6;color:var(--ink2)}
   .ad-rule{font-size:12px;border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:10px;background:var(--panel)}
   .ad-rule.eff{border-color:var(--acc);background:#f4fbf7;box-shadow:0 0 0 1px var(--acc) inset}
   .ad-rule .r-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -1283,11 +1274,10 @@ function openAdminDrawer(key){
   const head='<div class="ad-head"><div class="ad-title"><div class="t">'+esc(supLabel(c.sup))+' · '+esc(c.sheet)+' · '+esc(c.name)+'</div>'
     +'<div class="s">'+esc(c.country)+' · 单位 '+esc(c.unit)+' · '+c.qty+' 条运价 · 文件 '+esc(maskNames(c.file))+'</div></div>'
     +'<div class="ad-x" onclick="closeAdminDrawer()">✕</div></div>';
-  const left='<div class="ad-col l"><div class="col-t">备注条款<span class="cnt">'+notes.length+' 条'+(notes.some(function(n){ return n.red; })?' · 红色为风险':'')+'</span></div>'
-    +(notes.length?notes.map(function(n,i){ return '<div class="ad-idx'+(n.red?' red':'')+'" onclick="admShowNote('+i+')" title="点击查看第 '+(i+1)+' 条"><span class="no">'+(i+1)+'</span>'+(n.red?'<span class="tag">风险</span>':'')+'</div>'; }).join('')
+  const left='<div class="ad-col l" id="adm-col-l"><div class="col-t">源表备注附加费条款<span class="cnt">'+notes.length+' 条'+(notes.some(function(n){ return n.red; })?' · 红色为风险条款':'')+'</span></div>'
+    +(notes.length?notes.map(function(n,i){ return '<div class="ad-note'+(n.red?' red':'')+'"><span class="no">'+(i+1)+'</span>'+esc(n.text)+'</div>'; }).join('')
       :'<div class="ad-empty">该来源表无备注条款</div>')+'</div>';
   const right='<div class="ad-col"><div class="col-t">规则引擎匹配/生成规则<span class="cnt">'+rules.length+' 条 · 已生效 '+effKey.rules.filter(function(x){return x.eff;}).length+' 条</span></div>'
-    +'<div id="adm-note-detail" style="display:none"></div>'
     +'<button class="ad-new" onclick="adminRuleNew(\''+ttl+'\')">＋ 新增规则（人工补充遗漏项）</button>'
     +(rules.length?rules.map(function(r){
       const hit=effKey.rules.filter(function(x){ return x.name===r.name; })[0];
@@ -1329,23 +1319,46 @@ function openAdminDrawer(key){
             +'</div></div>';
         }).join('');
     })()+'</div>';
-  $c('adm-drawer').innerHTML=head+'<div class="ad-body">'+left+right+'</div>';
+  $c('adm-drawer').innerHTML=head+'<div class="ad-body">'+left+'<div class="ad-divider" id="adm-divider" onmousedown="admDragStart(event)"></div>'+right+'</div>';
   $c('adm-drawer').style.display='flex';
+  /* 应用上次拖拽的备注列宽度 */
+  try{
+    const w=parseFloat(localStorage.getItem('fba_admin_note_w'));
+    const l=$c('adm-col-l');
+    if(w && l) l.style.width=Math.max(6,Math.min(70,w))+'%';
+  }catch(e){}
   $c('adm-mask').style.display='block';
 }
 function closeAdminDrawer(){ $c('adm-drawer').style.display='none'; $c('adm-mask').style.display='none'; }
-/* 备注索引：点击编号在右列上方展开该条全文，再点同一编号收起 */
-function admShowNote(i){
-  const d=$c('adm-note-detail'); if(!d) return;
-  const c=ADM_CH[ADM_CUR_KEY]; if(!c) return;
-  const notes=admNotes(c.sup,c.sheet);
-  const n=notes[i]; if(!n) return;
-  if(d.style.display!=='none' && d._i===i){ d.style.display='none'; return; }
-  d.innerHTML='<div class="nd-t">第 '+(i+1)+' 条备注'+(n.red?' <span class="badge b-red">风险条款</span>':'')+' <span class="nd-x" onclick="admCloseNote()">×</span></div>'
-    +'<div class="nd-b">'+esc(n.text)+'</div>';
-  d.style.display='block'; d._i=i;
+/* 备注列宽度拖拽调节：拖动分隔条改变左列宽，右列自适应；宽度持久化 */
+let ADM_DRAG=null;
+function admDragStart(e){
+  const l=$c('adm-col-l'), dr=$c('adm-divider');
+  if(!l || !dr) return;
+  const bodyW=$c('adm-drawer').getBoundingClientRect().width;
+  ADM_DRAG={x:e.clientX, w0:l.getBoundingClientRect().width, bodyW:bodyW};
+  dr.classList.add('active');
+  document.body.style.cursor='col-resize';
+  document.body.style.userSelect='none';
+  document.addEventListener('mousemove', admDragMove);
+  document.addEventListener('mouseup', admDragEnd);
+  e.preventDefault();
 }
-function admCloseNote(){ const d=$c('adm-note-detail'); if(d) d.style.display='none'; }
+function admDragMove(e){
+  if(!ADM_DRAG) return;
+  const pct=Math.max(6, Math.min(70, (ADM_DRAG.w0+(e.clientX-ADM_DRAG.x))/ADM_DRAG.bodyW*100));
+  const l=$c('adm-col-l');
+  if(l){ l.style.width=pct+'%'; try{ localStorage.setItem('fba_admin_note_w', String(Math.round(pct))); }catch(err){} }
+}
+function admDragEnd(){
+  const dr=$c('adm-divider');
+  if(dr) dr.classList.remove('active');
+  ADM_DRAG=null;
+  document.body.style.cursor='';
+  document.body.style.userSelect='';
+  document.removeEventListener('mousemove', admDragMove);
+  document.removeEventListener('mouseup', admDragEnd);
+}
 function adminEffToggle(key, name, on){
   const eff=admEffGet();
   const c=ADM_CH[key];
