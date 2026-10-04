@@ -522,13 +522,22 @@
   .ad-x{cursor:pointer;font-size:20px;color:var(--ink3);line-height:1;padding:4px 6px;border-radius:6px}
   .ad-x:hover{background:var(--line);color:var(--ink1)}
   .ad-body{flex:1;overflow:hidden;display:flex;gap:0}
-  .ad-col{padding:14px 12px;overflow:auto}
-  .ad-col.l{flex:none;width:38%;min-width:56px;max-width:70%;border-right:none}
-  .ad-divider{flex:none;width:6px;cursor:col-resize;position:relative;z-index:2;background:transparent;transition:background .15s}
-  .ad-divider::after{content:'';position:absolute;left:2px;top:0;bottom:0;width:2px;background:var(--line2);border-radius:1px}
-  .ad-divider:hover::after,.ad-divider.active::after{background:var(--acc)}
+  .ad-col{padding:14px 12px;overflow:auto;min-width:0}
+  .ad-col.l{flex:none;width:38%;border-right:1px solid var(--line);transition:width .18s ease}
+  .ad-col.l.collapsed{width:46px;padding:14px 5px}
+  .ad-col.l.collapsed .col-t{writing-mode:vertical-rl;font-size:11px;gap:0}
+  .ad-col.l.collapsed .cnt,.ad-col.l.collapsed .ad-note{display:none}
+  .ad-col.l.collapsed .ad-fold{writing-mode:horizontal-tb;margin:0;padding:1px 5px}
   .ad-col:last-child{flex:1;min-width:0}
   .ad-col .col-t{font-size:12.5px;font-weight:700;color:var(--ink1);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+  .ad-fold{cursor:pointer;margin-left:auto;font-size:11px;color:var(--acc2);font-weight:600;
+    border:1px solid var(--line2);border-radius:6px;padding:1px 7px;flex:none}
+  .ad-fold:hover{background:var(--panel2);border-color:var(--acc)}
+  .ad-cov{margin-bottom:10px;padding:7px 10px;font-size:11.5px;color:#8d2c24;background:#fdf3f1;
+    border:1px solid rgba(192,57,43,.35);border-left:3px solid #c0392b;border-radius:8px;cursor:pointer}
+  .ad-cov:hover{background:#fbe9e5}
+  .ad-cov b{color:#c0392b}
+  .ad-note.miss{outline:2px solid #c0392b;outline-offset:1px;background:#fff6f4}
   .ad-col .col-t .cnt{font-size:10.5px;color:var(--ink3);font-weight:400}
   .ad-note{font-size:11px;line-height:1.5;color:var(--ink2);padding:6px 8px;border:1px solid var(--line);
     border-radius:8px;margin-bottom:6px;background:var(--panel);word-break:break-all}
@@ -567,7 +576,9 @@
     table.c-tbl col.c2{width:30%}
     .ad-body{flex-direction:column;overflow:auto}
     .ad-col.l{border-right:none;border-bottom:1px solid var(--line);max-height:40vh;width:100%}
-    .ad-divider{display:none}
+    .ad-col.l.collapsed{width:100%;max-height:34px;padding:10px 12px}
+    .ad-col.l.collapsed .col-t{writing-mode:horizontal-tb;font-size:12.5px;gap:8px}
+    .ad-col.l.collapsed .cnt{display:inline}
     .adm-row{flex-wrap:wrap}
     .adm-row .sheet{min-width:0}
   }
@@ -1275,10 +1286,18 @@ function openAdminDrawer(key){
   const head='<div class="ad-head"><div class="ad-title"><div class="t">'+esc(supLabel(c.sup))+' · '+esc(c.sheet)+' · '+esc(c.name)+'</div>'
     +'<div class="s">'+esc(c.country)+' · 单位 '+esc(c.unit)+' · '+c.qty+' 条运价 · 文件 '+esc(maskNames(c.file))+'</div></div>'
     +'<div class="ad-x" onclick="closeAdminDrawer()">✕</div></div>';
-  const left='<div class="ad-col l" id="adm-col-l"><div class="col-t">源表备注附加费条款<span class="cnt">'+notes.length+' 条'+(notes.some(function(n){ return n.red; })?' · 红色为风险条款':'')+'</span></div>'
+  const left='<div class="ad-col l" id="adm-col-l"><div class="col-t">源表备注附加费条款<span class="cnt">'+notes.length+' 条'+(notes.some(function(n){ return n.red; })?' · 红色为风险条款':'')+'</span>'
+    +'<span class="ad-fold" id="adm-fold" onclick="adColToggle()" title="收起/展开备注列">◀</span></div>'
     +(notes.length?notes.map(function(n,i){ return '<div class="ad-note'+(n.red?' red':'')+'"><span class="no">'+(i+1)+'</span>'+esc(n.text)+'</div>'; }).join('')
       :'<div class="ad-empty">该来源表无备注条款</div>')+'</div>';
   const right='<div class="ad-col"><div class="col-t">规则引擎匹配/生成规则<span class="cnt">'+rules.length+' 条 · 已生效 '+effKey.rules.filter(function(x){return x.eff;}).length+' 条</span></div>'
+    +(function(){
+      /* 抽全度提示：备注中带附加费特征词、但已建规则池没有对应语义 → 疑似漏抽，提示人工补 */
+      const miss=admMissWords(notes, rules);
+      if(!miss.length) return '';
+      return '<div class="ad-cov" onclick="admShowMiss('+JSON.stringify(miss).replace(/"/g,'&quot;')+')" title="点击高亮左侧对应备注">'
+        +'疑似漏抽 <b>'+miss.length+'</b> 条附加费条款（备注有、规则未覆盖）→ 点击查看</div>';
+    })()
     +'<button class="ad-new" onclick="adminRuleNew(\''+ttl+'\')">＋ 新增规则（人工补充遗漏项）</button>'
     +(rules.length?rules.map(function(r){
       const hit=effKey.rules.filter(function(x){ return x.name===r.name; })[0];
@@ -1320,46 +1339,57 @@ function openAdminDrawer(key){
             +'</div></div>';
         }).join('');
     })()+'</div>';
-  $c('adm-drawer').innerHTML=head+'<div class="ad-body">'+left+'<div class="ad-divider" id="adm-divider" onmousedown="admDragStart(event)"></div>'+right+'</div>';
+  $c('adm-drawer').innerHTML=head+'<div class="ad-body">'+left+right+'</div>';
   $c('adm-drawer').style.display='flex';
-  /* 应用上次拖拽的备注列宽度 */
-  try{
-    const w=parseFloat(localStorage.getItem('fba_admin_note_w'));
-    const l=$c('adm-col-l');
-    if(w && l) l.style.width=Math.max(6,Math.min(70,w))+'%';
-  }catch(e){}
   $c('adm-mask').style.display='block';
 }
+function adColToggle(){
+  const l=$c('adm-col-l'), f=$c('adm-fold');
+  if(!l) return;
+  l.classList.toggle('collapsed');
+  if(f) f.textContent=l.classList.contains('collapsed')?'▶':'◀';
+}
+/* 抽全度：备注含附加费特征词、但已建规则未覆盖 → 疑似漏抽 */
+const ADM_FEE_WORDS=[
+  {k:'偏远',ws:['偏远','岛区','邮编']},
+  {k:'旺季',ws:['旺季']},
+  {k:'超重',ws:['超重','超过22','>22','低消']},
+  {k:'超长',ws:['超长','长边']},
+  {k:'贴标',ws:['贴标']},
+  {k:'报关商检',ws:['报关','商检','熏蒸']},
+  {k:'派送',ws:['派送','派件','二次']},
+  {k:'退件',ws:['退件','退仓','退货','重派']},
+  {k:'查验低申报',ws:['查验','低申报','申报']},
+  {k:'纸箱',ws:['纸箱']},
+  {k:'地址',ws:['商业地址','私人地址','住宅']}
+];
+function admMissWords(notes, rules){
+  const cov=[];
+  rules.forEach(function(r){ cov.push(((r.name||'')+' '+(r.source||'')+' '+(r.desc||'')+' '+(r.unified_name||'')).toLowerCase()); });
+  const covText=cov.join(' ');
+  const miss=[];
+  notes.forEach(function(n,i){
+    ADM_FEE_WORDS.forEach(function(w){
+      const hit=w.ws.some(function(x){ return n.text.indexOf(x)>-1; });
+      if(hit && covText.indexOf(w.k)<0 && miss.indexOf(i)<0) miss.push(i);
+    });
+  });
+  return miss;
+}
+function admShowMiss(list){
+  const l=$c('adm-col-l'); if(!l) return;
+  l.classList.remove('collapsed');
+  const f=$c('adm-fold'); if(f) f.textContent='◀';
+  const notes=l.querySelectorAll('.ad-note');
+  notes.forEach(function(el,i){
+    el.classList.remove('miss');
+    if(list.indexOf(i)>-1) el.classList.add('miss');
+  });
+  const first=notes[list[0]];
+  if(first) first.scrollIntoView({block:'center',behavior:'smooth'});
+  setTimeout(function(){ notes.forEach(function(el){ el.classList.remove('miss'); }); }, 4000);
+}
 function closeAdminDrawer(){ $c('adm-drawer').style.display='none'; $c('adm-mask').style.display='none'; }
-/* 备注列宽度拖拽调节：拖动分隔条改变左列宽，右列自适应；宽度持久化 */
-let ADM_DRAG=null;
-function admDragStart(e){
-  const l=$c('adm-col-l'), dr=$c('adm-divider');
-  if(!l || !dr) return;
-  const bodyW=$c('adm-drawer').getBoundingClientRect().width;
-  ADM_DRAG={x:e.clientX, w0:l.getBoundingClientRect().width, bodyW:bodyW};
-  dr.classList.add('active');
-  document.body.style.cursor='col-resize';
-  document.body.style.userSelect='none';
-  document.addEventListener('mousemove', admDragMove);
-  document.addEventListener('mouseup', admDragEnd);
-  e.preventDefault();
-}
-function admDragMove(e){
-  if(!ADM_DRAG) return;
-  const pct=Math.max(6, Math.min(70, (ADM_DRAG.w0+(e.clientX-ADM_DRAG.x))/ADM_DRAG.bodyW*100));
-  const l=$c('adm-col-l');
-  if(l){ l.style.width=pct+'%'; try{ localStorage.setItem('fba_admin_note_w', String(Math.round(pct))); }catch(err){} }
-}
-function admDragEnd(){
-  const dr=$c('adm-divider');
-  if(dr) dr.classList.remove('active');
-  ADM_DRAG=null;
-  document.body.style.cursor='';
-  document.body.style.userSelect='';
-  document.removeEventListener('mousemove', admDragMove);
-  document.removeEventListener('mouseup', admDragEnd);
-}
 function adminEffToggle(key, name, on){
   const eff=admEffGet();
   const c=ADM_CH[key];
