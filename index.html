@@ -459,6 +459,8 @@
     border:1px solid rgba(224,123,31,.35);background:rgba(224,123,31,.07);
     padding:2px 9px;border-radius:20px;letter-spacing:.06em;white-space:nowrap}
   .ch-tags .tag.quote{color:#b45309;border-color:#f2c879;background:#fff6e6}
+  .ch-tags .tag.f-fuel{color:var(--ok);border-color:rgba(46,160,67,.4);background:#eaf7ef}
+  .ch-tags .tag.f-fuel-inc{color:var(--ink3);border-color:var(--line2);background:#f1f2f4;text-decoration:none}
   .calcmain{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-bottom:10px}
   .cm-fee{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 11px}
   .cm-fee .k{font-size:10px;color:var(--ink3);letter-spacing:.1em;font-family:var(--mono)}
@@ -1118,7 +1120,10 @@ function calcRun(){
     const nq=scs.some(function(s){return s.status==='need_quote';});
     const pendingCount=scs.filter(function(s){return s.pending;}).length;
     const scSum=hit.reduce(function(a,s){return a+(s.amount||0);},0);
-    out.push({r:r,main:main,scs:scs,total:+(main.subtotal+scSum).toFixed(2),nq:nq,pendingCount:pendingCount});
+    /* 燃油状态（用于卡片摘要直显）：hit=命中金额 / excluded=已含油不叠加 */
+    let fuel=null;
+    for(let si=0;si<scs.length;si++){ if(scs[si].rule==='通用'){ fuel={status:scs[si].status,amount:scs[si].amount}; break; } }
+    out.push({r:r,main:main,scs:scs,total:+(main.subtotal+scSum).toFixed(2),nq:nq,pendingCount:pendingCount,fuel:fuel});
   }
   out.sort(function(a,b){ return (a.nq?1:0)-(b.nq?1:0)||a.total-b.total; });
   /* 摘要"计费重/计费量"行跟随首条推荐渠道口径：CBM/件渠道不显示计费重，避免误导 */
@@ -1160,7 +1165,7 @@ function renderCalc(all, total){
       +'<span class="mi" title="'+esc(c.时效||'')+'"><span class="k">时效</span>'+esc(c.时效||'')+'</span>'
       +'<span class="mi"><span class="k">交货</span>'+esc(c.交货仓库||c.交货地||'')+'</span>'
       +'<span class="mi"><span class="k">计费</span>'+esc(c.单位||'')+'</span></div></div>'
-      +'<div class="ch-tags"><span class="tag">'+esc(q.main.tier)+'</span>'+tag+'</div></div>'
+      +'<div class="ch-tags"><span class="tag">'+esc(q.main.tier)+'</span>'+(q.fuel?(q.fuel.status==='hit'?'<span class="tag f-fuel">燃油 +'+fmtN(q.fuel.amount)+'</span>':'<span class="tag f-fuel-inc">含燃油</span>'):'')+tag+'</div></div>'
       +'<div class="ch-body">'
       +'<div class="calcmain">'
       +'<div class="cm-fee"><div class="k">主运费</div><div class="v">'+fmtN(q.main.subtotal)+'</div><div class="sub" title="成本 '+fmtN(q.main.price)+' + 利润 '+fmtN(q.main.mk)+' = '+fmtN(q.main.price+q.main.mk)+'（含利润）">'+esc(q.main.tier)+' ｜ '+fmtN(q.main.price+q.main.mk)+' × '+fmtN(q.main.qty)+' '+esc(q.main.unitW)+(q.main.minNote?' · '+esc(q.main.minNote):'')+'</div></div>'
