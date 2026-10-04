@@ -390,6 +390,22 @@
   .grow{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
   .gitem.wide{grid-column:1/-1}
   .chips{display:flex;flex-wrap:wrap;gap:6px}
+  /* 触发条件行编辑器 */
+  .cond-row{display:flex;align-items:center;gap:6px;margin-bottom:6px;flex-wrap:wrap}
+  .cond-row select{padding:4px 6px;font-size:11.5px;border:1px solid var(--line2);border-radius:6px;
+    background:var(--bg);color:var(--ink1);font-family:var(--mono)}
+  .cond-row select.cf{min-width:96px}
+  .cond-row select.co{min-width:72px}
+  .cond-row input.cv{flex:1;min-width:150px;padding:4px 8px;font-size:11.5px;border:1px solid var(--line2);
+    border-radius:6px;background:var(--bg);color:var(--ink1)}
+  .cond-row .del{cursor:pointer;color:var(--ink4);font-size:13px;padding:0 2px}
+  .cond-row .del:hover{color:#c0392b}
+  .cond-join{display:flex;gap:12px;font-size:11.5px;color:var(--ink2);margin:2px 0 6px;align-items:center}
+  .cond-join label{display:flex;align-items:center;gap:4px;cursor:pointer}
+  .cond-join input{accent-color:var(--acc)}
+  .cond-preview{font-size:11.5px;color:var(--acc2);background:#fff6ec;border:1px solid rgba(224,123,31,.3);
+    border-radius:8px;padding:6px 9px;margin-top:6px;line-height:1.5;word-break:break-all}
+  .cond-old{font-size:10.5px;color:var(--ink4);margin-top:4px;line-height:1.4;word-break:break-all}
   .chip{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line2);border-radius:999px;
     padding:4px 12px;font-size:12px;cursor:pointer;background:var(--bg);color:var(--ink2);
     transition:background .15s,color .15s,border-color .15s;user-select:none}
@@ -1658,18 +1674,21 @@ function renderAdminForm(key, name, isNew){
   const opts=['fixed_票','fixed_件','rate_KG','rate_CBM','manual','complex'].map(function(b){
     return '<option value="'+b+'"'+(b===bill?' selected':'')+'>'+admBillLabel(b)+'</option>';
   }).join('');
-  const chips='<div class="chips" style="margin-bottom:6px">'
-    +['单件重量','单边长度','货物名称','品名数','服务项','地址类型'].map(function(t){
-      return '<span class="chip" onclick="rfChip(\''+t+'\')">'+t+'</span>';
-    }).join('')+'</div>';
   const form='<div class="ad-form">'
     +'<div class="f wide"><label>规则名称</label><input id="rf_name"'+(isNew?(name?' value="'+esc(name)+'"':' placeholder="如 超长费"'):' value="'+esc(hit.name)+'"')+'></div>'
     +'<div class="f"><label>计费方式</label><select id="rf_bill" onchange="rfBillChange()">'+opts+'</select></div>'
     +'<div class="f"><label>金额/单价</label><input id="rf_amt" type="number" placeholder="如 200" value="'+(hit&&hit.amount!==null&&hit.amount!==undefined?hit.amount:'')+'"></div>'
     +'<div class="f"><label>单位</label><input id="rf_unit" value="'+(hit?esc(hit.unit||'元'):'元')+'"></div>'
     +'<div class="f"><label>计费基准</label><input id="rf_per" value="'+(hit?esc(hit.per||'票'):'票')+'"></div>'
-    +'<div class="f wide"><label>触发条件（点快捷短语，再改成你的情况）</label>'+chips
-    +'<input id="rf_cond"'+(isNew?' placeholder="如 单件重量 > 22KG，多条用；分隔"':' value="'+esc(hit.cond||'')+'"')+'></div>'
+    +'<div class="f wide"><label>触发条件（满足以下条件时才收取，不填则默认收取）</label>'
+    +'<div id="rf_condbox"></div>'
+    +'<div class="cond-join"><span class="alink" onclick="rfCondAdd()" style="font-weight:600">＋ 添加条件</span>'
+    +'<span style="color:var(--ink4)">连接：</span>'
+    +'<label><input type="radio" name="rf_join" value="and" checked> 且（全部满足）</label>'
+    +'<label><input type="radio" name="rf_join" value="or"> 或（任一满足）</label></div>'
+    +'<div class="cond-preview" id="rf_condprev">不设条件 · 默认收取</div>'
+    +(hit&&hit.cond&&!(hit.conds&&hit.conds.length)?'<div class="cond-old">原说明：'+esc(hit.cond)+'（可重新配置覆盖）</div>':'')
+    +'</div>'
     +'<div class="f wide" style="display:flex;gap:10px;margin-top:4px">'
     +'<span class="alink" onclick="adminRuleSave(\''+ttl+'\','+(isNew?'true':'false')+')">保存</span>'
     +'<span class="alink" onclick="openAdminDrawer(\''+ttl+'\')">取消</span></div></div>';
@@ -1686,6 +1705,10 @@ function renderAdminForm(key, name, isNew){
       }
     });
   }
+  /* 回填条件行（结构化优先；旧文本不回填，保留为"原说明"） */
+  const initConds=(hit&&hit.conds&&hit.conds.length)?hit.conds:[{f:'货物名称',op:'包含',v:''}];
+  initConds.forEach(function(c){ rfCondAdd(c.f,c.op,c.v); });
+  rfCondPreview();
 }
 function rfBillChange(){
   const b=$c('rf_bill').value, p=$c('rf_per');
@@ -1693,21 +1716,95 @@ function rfBillChange(){
   const map={'fixed_票':'票','fixed_件':'件','rate_KG':'KG','rate_CBM':'CBM','manual':'票'};
   p.value=map[b]||'票';
 }
-function rfChip(t){
-  const cd=$c('rf_cond'); if(!cd) return;
-  cd.value=cd.value?cd.value+'；'+t+' ':'';
-  cd.focus();
+/* 触发条件行编辑器：字段受控枚举 + 操作符联动 + 自然语言预览（面向市场非技术人员） */
+const ADM_COND_FIELDS=[
+  {k:'货物名称', unit:'', ops:['包含','等于']},
+  {k:'货物类型', unit:'', ops:['等于','包含']},
+  {k:'单件重量', unit:'KG', ops:['大于','小于','等于']},
+  {k:'单件体积', unit:'CBM', ops:['大于','小于','等于']},
+  {k:'计费重', unit:'KG', ops:['大于','小于','等于']},
+  {k:'件数', unit:'件', ops:['大于','小于','等于']},
+  {k:'品名数', unit:'个', ops:['大于','小于','等于']},
+  {k:'目的地', unit:'', ops:['等于','属于']},
+  {k:'地址类型', unit:'', ops:['等于']},
+  {k:'服务项', unit:'', ops:['包含']}
+];
+function rfCondFieldOpts(){ return ADM_COND_FIELDS.map(function(f){ return '<option>'+f.k+'</option>'; }).join(''); }
+function rfCondAdd(f0,op0,v0){
+  const box=$c('rf_condbox'); if(!box) return;
+  const idx=box.children.length;
+  const field=f0||'货物名称';
+  const ops=(ADM_COND_FIELDS.filter(function(x){ return x.k===field; })[0]||ADM_COND_FIELDS[0]).ops;
+  const isNum=ADM_COND_FIELDS.filter(function(x){ return x.k===field; })[0].unit;
+  box.insertAdjacentHTML('beforeend',
+    '<div class="cond-row">'
+    +'<select class="cf" id="rf_cf_'+idx+'" onchange="rfCondFieldChange('+idx+')">'+rfCondFieldOpts()
+      .replace('<option>'+field+'</option>','<option selected>'+field+'</option>')+'</select>'
+    +'<select class="co" id="rf_co_'+idx+'" onchange="rfCondPreview()">'
+      +ops.map(function(o){ return '<option'+(o===op0?' selected':'')+'>'+o+'</option>'; }).join('')+'</select>'
+    +'<input class="cv" id="rf_cv_'+idx+'" type="'+(isNum?'number':'text')+'" placeholder="'+(isNum?'如 22 '+isNum:'如 木制品')+'" value="'+(v0!==undefined&&v0!==null?esc(v0):'')+'" oninput="rfCondPreview()">'
+    +'<span class="del" onclick="rfCondDel('+idx+')">✕</span>'
+    +'</div>');
+}
+function rfCondDel(idx){
+  const box=$c('rf_condbox'); if(!box) return;
+  const row=box.children[idx]; if(!row) return;
+  row.remove();
+  rfCondPreview();
+}
+function rfCondFieldChange(idx){
+  const f=$c('rf_cf_'+idx), o=$c('rf_co_'+idx), v=$c('rf_cv_'+idx);
+  if(!f||!o||!v) return;
+  const field=ADM_COND_FIELDS.filter(function(x){ return x.k===f.value; })[0]||ADM_COND_FIELDS[0];
+  o.innerHTML=field.ops.map(function(x){ return '<option>'+x+'</option>'; }).join('');
+  v.type=field.unit?'number':'text';
+  v.placeholder=field.unit?('如 22 '+field.unit):'如 木制品';
+  rfCondPreview();
+}
+function rfCondRows(){
+  const box=$c('rf_condbox'); if(!box) return [];
+  const rows=[];
+  Array.prototype.forEach.call(box.children,function(row,idx){
+    const f=$c('rf_cf_'+idx), o=$c('rf_co_'+idx), v=$c('rf_cv_'+idx);
+    if(f&&o&&v&&v.value.trim()) rows.push({f:f.value, op:o.value, v:v.value.trim()});
+  });
+  return rows;
+}
+function rfCondUnit(k){
+  if(k==='单件重量'||k==='计费重') return 'KG';
+  if(k==='单件体积') return 'CBM';
+  if(k==='件数') return '件';
+  if(k==='品名数') return '个';
+  return '';
+}
+function rfCondPreview(){
+  const prev=$c('rf_condprev'); if(!prev) return;
+  const rows=rfCondRows();
+  const joinEl=document.querySelector('input[name=rf_join]:checked');
+  const join=(joinEl&&joinEl.value==='or')?'或':'且';
+  if(!rows.length){ prev.textContent='不设条件 · 默认收取'; return; }
+  prev.textContent='当 '+rows.map(function(r){ return r.f+' '+r.op+' '+r.v+rfCondUnit(r.f); }).join(' '+join+' ')+' 时收取';
 }
 function adminRuleSave(key, isNew){
-  const nm=$c('rf_name'), amt=$c('rf_amt'), u=$c('rf_unit'), p=$c('rf_per'), cd=$c('rf_cond'), bl=$c('rf_bill');
+  const nm=$c('rf_name'), amt=$c('rf_amt'), u=$c('rf_unit'), p=$c('rf_per'), bl=$c('rf_bill');
   if(!nm || !nm.value.trim()) return;
   const eff=admEffGet();
   const list=eff[key]||{sup:admSupOf(key), rules:[]};
+  const rows=rfCondRows();
+  const joinEl=document.querySelector('input[name=rf_join]:checked');
+  const join=(joinEl&&joinEl.value==='or')?'或':'且';
+  let condTxt='', conds=[];
+  if(rows.length){
+    conds=rows;
+    condTxt=rows.map(function(r){ return r.f+' '+r.op+' '+r.v+rfCondUnit(r.f); }).join(' '+join+' ');
+  }
+  const oldHit=list.rules.filter(function(x){ return x.name===nm.value.trim(); })[0];
   const rec={name:nm.value.trim(),
     amount:amt&&amt.value!==''?Number(amt.value):null,
     unit:u?u.value.trim()||'元':'元',
     per:p?p.value.trim()||'票':'票',
-    cond:cd?cd.value.trim():'',
+    cond:rows.length?condTxt:(oldHit?oldHit.cond:''),
+    conds:rows.length?conds:(oldHit&&oldHit.conds?oldHit.conds:[]),
     billing:bl?bl.value:'fixed_票'};
   if(isNew){
     rec.eff=false;
