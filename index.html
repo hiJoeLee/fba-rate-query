@@ -1122,7 +1122,7 @@ function calcRun(){
     const scSum=hit.reduce(function(a,s){return a+(s.amount||0);},0);
     /* 燃油状态（用于卡片摘要直显）：hit=命中金额 / excluded=已含油不叠加 */
     let fuel=null;
-    for(let si=0;si<scs.length;si++){ if(scs[si].rule==='通用'){ fuel={status:scs[si].status,amount:scs[si].amount}; break; } }
+    for(let si=0;si<scs.length;si++){ if(scs[si].rule==='通用'){ fuel={status:scs[si].status,amount:scs[si].amount,reason:scs[si].reason||''}; break; } }
     out.push({r:r,main:main,scs:scs,total:+(main.subtotal+scSum).toFixed(2),nq:nq,pendingCount:pendingCount,fuel:fuel});
   }
   out.sort(function(a,b){ return (a.nq?1:0)-(b.nq?1:0)||a.total-b.total; });
@@ -1165,11 +1165,11 @@ function renderCalc(all, total){
       +'<span class="mi" title="'+esc(c.时效||'')+'"><span class="k">时效</span>'+esc(c.时效||'')+'</span>'
       +'<span class="mi"><span class="k">交货</span>'+esc(c.交货仓库||c.交货地||'')+'</span>'
       +'<span class="mi"><span class="k">计费</span>'+esc(c.单位||'')+'</span></div></div>'
-      +'<div class="ch-tags"><span class="tag">'+esc(q.main.tier)+'</span>'+(q.fuel?(q.fuel.status==='hit'?'<span class="tag f-fuel">燃油 +'+fmtN(q.fuel.amount)+'</span>':'<span class="tag f-fuel-inc">含燃油</span>'):'')+tag+'</div></div>'
+      +'<div class="ch-tags"><span class="tag">'+esc(q.main.tier)+'</span>'+(q.fuel?(q.fuel.status==='hit'?'<span class="tag f-fuel" title="'+esc(q.fuel.reason)+' · 主运费 '+fmtN(q.main.subtotal)+' × 费率 = +'+fmtN(q.fuel.amount)+'">燃油 +'+fmtN(q.fuel.amount)+'</span>':'<span class="tag f-fuel-inc" title="'+esc(q.fuel.reason)+'">含燃油</span>'):'')+tag+'</div></div>'
       +'<div class="ch-body">'
       +'<div class="calcmain">'
       +'<div class="cm-fee"><div class="k">主运费</div><div class="v">'+fmtN(q.main.subtotal)+'</div><div class="sub" title="成本 '+fmtN(q.main.price)+' + 利润 '+fmtN(q.main.mk)+' = '+fmtN(q.main.price+q.main.mk)+'（含利润）">'+esc(q.main.tier)+' ｜ '+fmtN(q.main.price+q.main.mk)+' × '+fmtN(q.main.qty)+' '+esc(q.main.unitW)+(q.main.minNote?' · '+esc(q.main.minNote):'')+'</div></div>'
-      +'<div class="cm-fee"><div class="k">附加费</div><div class="v">'+q.scs.filter(function(s){return s.status==='hit';}).length+' 项命中</div><div class="sub">'+(q.nq?'含需单询项':(q.pendingCount?'含待确认项':'全部可算'))+'</div></div>'
+      +'<div class="cm-fee"><div class="k">附加费</div><div class="v">'+q.scs.filter(function(s){return s.status==='hit';}).length+' 项命中</div><div class="sub">'+(q.nq?'含需单询项':(q.pendingCount?'含待确认项':(q.fuel&&q.fuel.status==='hit'?esc(q.fuel.reason):'全部可算')))+'</div></div>'
       +'<div class="cm-fee total"><div class="k">合计（'+esc(q.main.currency||'币种待标')+'）</div><div class="v">'+fmtN(q.total)+'</div><div class="sub">主运费+附加费</div></div>'
       +'</div>'
       +'<div class="c-acts">'
