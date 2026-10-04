@@ -561,6 +561,19 @@
   details.ad-missr summary{font-size:11px;color:var(--ink3);cursor:pointer;line-height:1.5}
   details.ad-missr .ad-rule{background:#fbfbfd}
   .ad-rule .r-ops{display:flex;align-items:center;gap:8px;margin-top:8px;flex-wrap:wrap}
+  /* 备注↔规则 双向聚焦（聚焦但不消失：弱化+高亮+上下文条） */
+  .ad-note{position:relative;cursor:pointer;transition:opacity .15s}
+  .ad-note:hover{border-color:var(--acc)}
+  .ad-note .rel{display:block;font-size:10px;color:var(--ink4);margin-top:3px}
+  .ad-note .rel.none{color:#c0392b}
+  .ad-note .rel .plus{color:var(--acc2);font-weight:700;cursor:pointer;margin-left:4px}
+  .ad-note.dim,.ad-rule.dim{opacity:.32}
+  .ad-note.miss{outline:2px solid var(--acc);outline-offset:-1px;border-color:var(--acc)}
+  .ad-rule.focus{outline:2px solid var(--acc);outline-offset:1px;border-color:var(--acc);background:#fff8ef}
+  .ad-focusbar{display:none;align-items:center;justify-content:space-between;gap:8px;font-size:11px;
+    color:var(--acc2);background:#fff6ec;border:1px solid rgba(224,123,31,.35);border-radius:8px;
+    padding:5px 9px;margin-bottom:10px;flex-wrap:wrap}
+  .ad-focusbar .alink{font-weight:600}
   .ad-rule .r-ops label{font-size:11px;color:var(--ink3);display:flex;align-items:center;gap:4px;cursor:pointer}
   .ad-rule input[type=number],.ad-rule input[type=text]{width:76px;padding:3px 6px;font-size:11.5px;
     border:1px solid var(--line2);border-radius:6px;background:var(--bg);color:var(--ink1);font-family:var(--mono)}
@@ -1330,25 +1343,43 @@ function openAdminDrawer(key){
   const effAll=admEffGet();
   const effKey=effAll[key]||{sup:sheet.sup, rules:[]};
   const ttl=admEscKey(key);
+  ADM_FOCUS_NOTE=-1;
+  const noteRules=admNoteRulesOf(sheet);
   const firstCh=admChannels().filter(function(c){ return c.sup===sheet.sup&&c.sheet===sheet.sheet; })[0];
   const head='<div class="ad-head"><div class="ad-title"><div class="t">'+esc(supLabel(sheet.sup))+' · '+esc(sheet.sheet)+'</div>'
     +'<div class="s">'+sheet.channels.length+' 个渠道 · 运价合计 '+sheet.qty+' 条 · 文件 '+esc(maskNames(firstCh?firstCh.file:''))+'</div></div>'
     +'<div class="ad-x" onclick="closeAdminDrawer()">✕</div></div>';
   const left='<div class="ad-col l" id="adm-col-l"><div class="col-t">源表备注附加费条款<span class="cnt">'+notes.length+' 条'+(notes.some(function(n){ return n.red; })?' · 红色为风险条款':'')+'</span>'
     +'<span class="ad-fold" id="adm-fold" onclick="adColToggle()" title="收起/展开备注列">◀</span></div>'
-    +(notes.length?notes.map(function(n,i){ return '<div class="ad-note'+(n.red?' red':'')+'"><span class="no">'+(i+1)+'</span>'+esc(n.text)+'</div>'; }).join('')
+    +(notes.length?notes.map(function(n,i){
+      const rel=noteRules[i];
+      return '<div class="ad-note'+(n.red?' red':'')+'" data-ni="'+i+'" onclick="admFocusNote('+i+')">'
+        +'<span class="no">'+(i+1)+'</span>'+esc(n.text)
+        +'<span class="rel'+(rel.length?'':' none')+'">'
+        +(rel.length?'关联 '+rel.length+' 条规则':'未生成规则')
+        +(rel.length?'':'<span class="plus" onclick="event.stopPropagation();adminRuleNew(\''+ttl+'\',\''+admEscKey(n.text.slice(0,24))+'\')" title="按该备注新增规则（金额人工填）">＋ 新增</span>')
+        +'</span></div>';
+    }).join('')
       :'<div class="ad-empty">该来源表无备注条款</div>')+'</div>';
   const right=(function(){
-      /* 按来源表挂载：命中当前表备注（原文证据）的规则为主区；未命中折叠为"备注未体现" */
+      /* 按来源表挂载：命中当前表备注（原文证据）的规则为主区；未命中折叠为"备注未体现"。
+         主区按最小命中条款编号排序，与左侧备注顺序对齐，方便逐条核对。 */
       const hitRules=[], missRules=[];
-      rules.forEach(function(r){
+      rules.forEach(function(r,ri){
         const hits=admRuleHitNotes(r, sheet.sup, sheet.sheet);
-        (hits.length?hitRules:missRules).push({r:r,hits:hits});
+        (hits.length?hitRules:missRules).push({r:r,hits:hits,ri:ri});
+      });
+      hitRules.sort(function(a,b){
+        const ai=Math.min.apply(null,a.hits.map(function(h){return h.i;}));
+        const bi=Math.min.apply(null,b.hits.map(function(h){return h.i;}));
+        return ai-bi;
       });
       /* 抽全度提示：备注中带附加费特征词、但已建规则池没有对应语义 → 疑似漏抽，提示人工补 */
       const miss=admMissWords(notes, rules);
       let s='<div class="ad-col"><div class="col-t">规则引擎匹配/生成规则<span class="cnt">'+rules.length+' 条 · 本表备注命中 '+hitRules.length+' 条 · 已生效 '+effKey.rules.filter(function(x){return x.eff;}).length+' 条</span></div>';
-      s+='<div class="ad-covtip">备注为渠道报价单原文；未写入备注的附加费（口头约定/临时费）请用"新增规则"人工补充</div>';
+      s+='<div class="ad-focusbar" id="adm-focusbar"><span id="adm-focus-txt"></span>'
+        +'<span class="alink" onclick="admFocusClear()">✕ 退出聚焦</span></div>';
+      s+='<div class="ad-covtip">点击左侧备注 → 右侧聚焦关联规则；右侧"备注依据"可反向定位。未生成规则的备注可点"＋ 新增"补充</div>';
       s+=(miss.length?'<div class="ad-cov" onclick="admShowMiss('+JSON.stringify(miss).replace(/"/g,'&quot;')+')" title="点击高亮左侧对应备注">'
         +'疑似漏抽 <b>'+miss.length+'</b> 条附加费条款（备注有、规则未覆盖）→ 点击查看</div>':'');
       s+='<button class="ad-new" onclick="adminRuleNew(\''+ttl+'\')">＋ 新增规则（人工补充遗漏项）</button>';
@@ -1356,7 +1387,7 @@ function openAdminDrawer(key){
         const r=o.r, hit=effKey.rules.filter(function(x){ return x.name===r.name; })[0];
         const effOn=!!(hit&&hit.eff);
         const draft=!!(hit&&!hit.eff);
-        return '<div class="ad-rule'+(effOn?' eff':'')+'"><div class="r-top">'
+        return '<div class="ad-rule'+(effOn?' eff':'')+'" data-ri="'+o.ri+'"><div class="r-top">'
           +'<span class="r-name">'+esc(r.name)+'</span>'
           +'<span class="r-unified">'+esc(r.unified_name||'')+'</span>'
           +admRuleBadge(r)
@@ -1365,7 +1396,7 @@ function openAdminDrawer(key){
           +'</div>'
           +'<div class="r-formula"><b>计费：</b>'+(draft?'已编辑待生效：'+fmtN(hit.amount)+' '+esc(hit.unit||'元')+'/'+esc(hit.per||'票')+(hit.cond?' · '+esc(hit.cond):''):admFmtFormula(r))+' · 模式 '+esc(r.billing_mode||'')+'</div>'
           +'<div class="r-trigger"><b>触发：</b>'+(draft?(hit.cond?esc(hit.cond):'（草稿）'):admFmtTrigger(r))+'</div>'
-          +'<div class="r-basis" onclick="admShowMiss('+JSON.stringify(o.hits.map(function(h){return h.i;})).replace(/"/g,'&quot;')+')" title="点击定位左侧对应备注">备注依据：条款'+o.hits.map(function(h){return h.i+1;}).join('、')+'</div>'
+          +'<div class="r-basis" onclick="admShowMiss('+JSON.stringify(o.hits.map(function(h){return h.i;})).replace(/"/g,'&quot;')+')" title="点击聚焦左侧对应备注">备注依据：条款'+o.hits.map(function(h){return h.i+1;}).join('、')+'</div>'
           +'<div class="r-src">'+esc(r.source||'')+'</div>'
           +'<div class="r-ops">'
           +'<label><input type="checkbox"'+(effOn?' checked':'')+' onchange="adminEffToggle(\''+ttl+'\',\''+admEscKey(r.name)+'\',this.checked)"> 生效</label>'
@@ -1380,7 +1411,7 @@ function openAdminDrawer(key){
           const r=o.r, hit=effKey.rules.filter(function(x){ return x.name===r.name; })[0];
           const effOn=!!(hit&&hit.eff);
           const draft=!!(hit&&!hit.eff);
-          return '<div class="ad-rule'+(effOn?' eff':'')+'"><div class="r-top">'
+          return '<div class="ad-rule'+(effOn?' eff':'')+'" data-ri="'+o.ri+'"><div class="r-top">'
             +'<span class="r-name">'+esc(r.name)+'</span>'
             +'<span class="r-unified">'+esc(r.unified_name||'')+'</span>'
             +admRuleBadge(r)
@@ -1488,18 +1519,72 @@ function admMissWords(notes, rules){
   });
   return miss;
 }
+/* 备注↔规则 双向聚焦：点击左侧备注 → 右侧关联规则高亮、其余弱化；点击右侧"备注依据" → 左侧对应备注高亮、其余弱化。
+   聚焦不消失（弱化保留上下文），再次点击或"✕ 退出聚焦"恢复。 */
+let ADM_FOCUS_NOTE=-1;
+function admNoteRulesOf(sheet){
+  /* 备注 i → 该表全部规则的规则库下标数组 */
+  const rules=admRulesOf(sheet.sup);
+  const out=[];
+  const notes=admNotes(sheet.sup,sheet.sheet);
+  notes.forEach(function(){ out.push([]); });
+  rules.forEach(function(r,ri){
+    admRuleHitNotes(r, sheet.sup, sheet.sheet).forEach(function(h){ out[h.i].push(ri); });
+  });
+  return out;
+}
+function admFocusNote(i){
+  if(ADM_FOCUS_NOTE===i){ admFocusClear(); return; }
+  ADM_FOCUS_NOTE=i;
+  const sheet=admSheets().filter(function(x){ return x.key===ADM_CUR_KEY; })[0];
+  const riList=sheet?admNoteRulesOf(sheet)[i]||[]:[];
+  document.querySelectorAll('#adm-drawer .ad-rule').forEach(function(el){
+    el.classList.remove('focus');
+    const ri=Number(el.getAttribute('data-ri'));
+    if(riList.indexOf(ri)>-1){ el.classList.add('focus'); el.classList.remove('dim'); }
+    else el.classList.add('dim');
+  });
+  document.querySelectorAll('#adm-col-l .ad-note').forEach(function(el){
+    el.classList.remove('miss');
+    if(Number(el.getAttribute('data-ni'))===i){ el.classList.add('miss'); el.classList.remove('dim'); }
+    else el.classList.add('dim');
+  });
+  const bar=$c('adm-focusbar');
+  if(bar){
+    $c('adm-focus-txt').textContent='当前查看：条款'+(i+1)+' · 关联 '+(riList.length?riList.length+' 条规则':'0 条（该备注未生成规则，可用"＋ 新增"补充）');
+    bar.style.display='flex';
+  }
+  if(riList.length){
+    const first=document.querySelector('#adm-drawer .ad-rule.focus');
+    if(first) first.scrollIntoView({block:'center',behavior:'smooth'});
+  }else{
+    const nb=document.querySelector('#adm-drawer .ad-new');
+    if(nb) nb.scrollIntoView({block:'center',behavior:'smooth'});
+  }
+}
+function admFocusClear(){
+  ADM_FOCUS_NOTE=-1;
+  document.querySelectorAll('#adm-drawer .ad-rule').forEach(function(el){ el.classList.remove('dim','focus'); });
+  document.querySelectorAll('#adm-col-l .ad-note').forEach(function(el){ el.classList.remove('dim','miss'); });
+  const bar=$c('adm-focusbar'); if(bar) bar.style.display='none';
+}
 function admShowMiss(list){
   const l=$c('adm-col-l'); if(!l) return;
   l.classList.remove('collapsed');
   const f=$c('adm-fold'); if(f) f.textContent='◀';
   const notes=l.querySelectorAll('.ad-note');
   notes.forEach(function(el,i){
-    el.classList.remove('miss');
+    el.classList.remove('miss','dim');
     if(list.indexOf(i)>-1) el.classList.add('miss');
+    else el.classList.add('dim');
   });
+  const bar=$c('adm-focusbar');
+  if(bar){
+    $c('adm-focus-txt').textContent='当前查看：备注条款 '+list.map(function(i){ return '#'+(i+1); }).join('、')+' 的关联规则';
+    bar.style.display='flex';
+  }
   const first=notes[list[0]];
   if(first) first.scrollIntoView({block:'center',behavior:'smooth'});
-  setTimeout(function(){ notes.forEach(function(el){ el.classList.remove('miss'); }); }, 4000);
 }
 function closeAdminDrawer(){ $c('adm-drawer').style.display='none'; $c('adm-mask').style.display='none'; }
 function adminEffToggle(key, name, on){
@@ -1573,7 +1658,7 @@ function renderAdminForm(key, name, isNew){
       return '<span class="chip" onclick="rfChip(\''+t+'\')">'+t+'</span>';
     }).join('')+'</div>';
   const form='<div class="ad-form">'
-    +'<div class="f wide"><label>规则名称</label><input id="rf_name"'+(isNew?' placeholder="如 超长费"':' value="'+esc(hit.name)+'"')+'></div>'
+    +'<div class="f wide"><label>规则名称</label><input id="rf_name"'+(isNew?(name?' value="'+esc(name)+'"':' placeholder="如 超长费"'):' value="'+esc(hit.name)+'"')+'></div>'
     +'<div class="f"><label>计费方式</label><select id="rf_bill" onchange="rfBillChange()">'+opts+'</select></div>'
     +'<div class="f"><label>金额/单价</label><input id="rf_amt" type="number" placeholder="如 200" value="'+(hit&&hit.amount!==null&&hit.amount!==undefined?hit.amount:'')+'"></div>'
     +'<div class="f"><label>单位</label><input id="rf_unit" value="'+(hit?esc(hit.unit||'元'):'元')+'"></div>'
@@ -1635,7 +1720,7 @@ function adminRuleSave(key, isNew){
   eff[key]=list; admEffSet(eff); openAdminDrawer(key);
 }
 function adminRuleEdit(key, name){ renderAdminForm(key, name, false); }
-function adminRuleNew(key){ renderAdminForm(key, null, true); }
+function adminRuleNew(key, defName){ renderAdminForm(key, defName||null, true); }
 function adminEffDel(key, name){
   const eff=admEffGet();
   const list=eff[key]||{sup:admSupOf(key), rules:[]};
