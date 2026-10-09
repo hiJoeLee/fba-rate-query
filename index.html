@@ -836,7 +836,12 @@ const DATA = window.__FBA_DATA__;
    后台管理（附加费规则库 / 渠道管理）与数据发布照旧。
    恢复：把 HIDDEN_SUPPLIERS 里对应键删掉（或整对象置 {}）即可，无需动数据。 */
 const HIDDEN_SUPPLIERS = { '蓝图梦': '暂时不需要使用' };
-const VISIBLE = DATA.filter(r => !HIDDEN_SUPPLIERS[String((r && r.供应商代码) || '')]);
+/* ── 国家屏蔽（2026-10-09，用户拍板）────────────────────
+   巴西运价当前「不需要展示、不提供运价查询」→ 查询页整体屏蔽（同供应商屏蔽口径）。
+   恢复：把 HIDDEN_COUNTRIES 里对应键删掉即可，无需动数据。 */
+const HIDDEN_COUNTRIES = { '巴西': '暂时不需要展示' };
+const VISIBLE = DATA.filter(r => !HIDDEN_SUPPLIERS[String((r && r.供应商代码) || '')]
+                          && !HIDDEN_COUNTRIES[String((r && r.国家) || '')]);
 
 /* ===== 运费计算（feat/计费 新增；求值器与 parser/structure/surcharge-v2/rule_engine.py 同语义） ===== */
 const SRC = window.__FBA_SURCHARGE_RULES__ || [];
