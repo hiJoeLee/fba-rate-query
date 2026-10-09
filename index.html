@@ -57,8 +57,9 @@
   }
   .brand h1 em{font-style:normal;color:var(--acc)}
   .brand .sub{display:none}
-  .ana-sw{display:inline-flex;align-items:center;gap:5px;margin-top:2px;
-    font-size:11px;color:var(--ink2);cursor:pointer;user-select:none}
+  /* ★2026-10-09 用户拍板：「隐藏供应商」选项从界面移除（默认勾选态保持，供应商固定显示代码）；
+     input 元素保留（display:none 不影响其 checked 状态），避免 JS 报错 */
+  .ana-sw{display:none}
   .ana-sw input{accent-color:var(--acc);cursor:pointer}
   .stats{display:flex;gap:12px;flex-wrap:wrap}
   .stat{
