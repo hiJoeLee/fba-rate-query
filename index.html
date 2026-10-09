@@ -216,18 +216,30 @@
   /* 懒渲染：收起的分组 host 内为空，不占任何空间 */
   .tbl-host:empty{display:none}
   .tg-exp{color:var(--acc2);font-weight:600;margin-left:6px;font-family:var(--mono)}
-  /* 本表报价说明（备注层）：表区块顶部的可折叠条款面板，随分组展开/收起 */
-  .notes-host{margin:0 0 10px;border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+  /* 本表报价说明（备注层）：表区块顶部的可折叠条款面板，随分组展开/收起。
+     ★2026-10-09 用户拍板：默认显示**两行预览**（不再完全收起），点击标题行展开全部；面板视觉强化（橙色边框/标题/渐隐）。 */
+  .notes-host{margin:0 0 10px;border:1px solid rgba(224,123,31,.38);border-radius:10px;background:var(--panel);overflow:hidden;
+    box-shadow:0 1px 4px rgba(224,123,31,.07)}
   .notes-host .nh-title{padding:8px 12px;cursor:pointer;font-weight:600;color:var(--ink2);
-    display:flex;gap:8px;align-items:center;background:var(--panel2);font-size:12px;user-select:none}
+    display:flex;gap:8px;align-items:center;background:var(--panel2);font-size:12px;user-select:none;
+    border-bottom:1px solid rgba(224,123,31,.14)}
   .notes-host .nh-title:hover{color:var(--acc)}
   .notes-host .nh-title .caret{transition:transform .15s}
-  .notes-host.closed .nh-title .caret{transform:rotate(-90deg)}
-  .notes-host.closed .nh-list{display:none}
+  .notes-host .nh-title .caret{transform:rotate(-90deg)}      /* 预览态：▸ 可展开 */
+  .notes-host.open .nh-title .caret{transform:none}           /* 展开态：▾ */
+  .notes-host .nh-label{color:var(--acc);font-weight:700}
+  .nh-tip{font-weight:600;font-family:var(--mono);font-size:11px;color:var(--acc2);white-space:nowrap}
+  .nh-tip::before{content:'▸ '}
+  .notes-host.open .nh-tip::before{content:'▾ '}
   .nh-count{color:var(--ink3);font-weight:600;font-family:var(--mono);font-size:11px}
+  /* 两行预览：默认截断到两行 + 底部渐隐；展开后 300px 内滚动 */
+  .notes-host .nh-list{max-height:52px;overflow:hidden;position:relative}
+  .notes-host .nh-list::after{content:'';position:absolute;left:0;right:0;bottom:0;height:12px;
+    background:linear-gradient(rgba(255,255,255,0),var(--panel));pointer-events:none}
+  .notes-host.open .nh-list{max-height:300px;overflow-y:auto}
+  .notes-host.open .nh-list::after{display:none}
   .nh-list{margin:0;padding:8px 12px 10px;list-style:none;font-size:11px;line-height:1.4;color:var(--ink);
-    background:var(--panel);white-space:pre-line;word-break:break-word;
-    max-height:300px;overflow-y:auto}
+    background:var(--panel);white-space:pre-line;word-break:break-word}
   .nh-list li{margin:3px 0;padding:1px 2px 1px 10px;border-left:2px solid var(--line)}
   /* 层级：小节标题（编号+冒号）/ 子条款（缩进）/ 附注 / 段落分隔 */
   .nh-list .nh-h{font-weight:600;margin:5px 0 0}
@@ -2854,8 +2866,8 @@ function notesHtml(sup, sheet){
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" ' +
     'stroke-linecap="round" stroke-linejoin="round"><path d="M20 13V4h-9"/><path d="M4 11v9h9"/>' +
     '<path d="M4 4l16 16"/></svg></button>';
-  return `<div class="notes-host closed" data-sup="${esc(sup)}" data-sheet="${esc(sheet)}">
-    <div class="nh-title" role="button" tabindex="0" aria-expanded="false"><span class="caret">▾</span>渠道说明 <span class="nh-count">条款 ${nums.length} 条</span>${pop}</div>
+  return `<div class="notes-host" data-sup="${esc(sup)}" data-sheet="${esc(sheet)}">
+    <div class="nh-title" role="button" tabindex="0" aria-expanded="false"><span class="caret">▾</span><span class="nh-label">渠道说明</span> <span class="nh-count">条款 ${nums.length} 条</span><span class="nh-tip">展开</span>${pop}</div>
     <ul class="nh-list">${html}</ul></div>`;
 }
 
@@ -2886,7 +2898,9 @@ function buildTableHtml(gk){
   if(!c) return '';
   const g = c.rows, tiers = c.tiers;
   const infoW = TBL_INFO_COLS.reduce((s,x)=>s+x[1],0);   // 信息列固定总宽
-  const tMin = infoW + tiers.length*60;                  // 每档位列最小可视宽 60px，避免手机端挤压重叠
+  const tMin = infoW + tiers.length*130;               // 每档位列最小可视宽 130px（容纳 `1,293.76(+160)` 加价标注），
+                                                        //   显式撑起表格宽度（table-layout:fixed 下列宽总和＞表格宽会被
+                                                        //   等比压缩 → 窄容器下价格列趋近 0、文本溢出重叠；宽列 + 显式 width 根治）
   const colgroup = '<colgroup>' + TBL_INFO_COLS.map(x=>`<col style="width:${x[1]}px">`).join('') + tiers.map(()=>'<col>').join('') + '</colgroup>';
   const headCells = TBL_INFO_COLS.map(x=>`<th>${x[0]}</th>`).join('');
   const priceCells = tiers.map(t=>`<th class="num">${esc(t)}</th>`).join('');
@@ -2916,7 +2930,7 @@ function buildTableHtml(gk){
       </tr>`;
   }).join('');
   return `<div class="tbl-scroll">
-        <table class="tbl" style="min-width:${tMin}px">
+        <table class="tbl" style="width:${tMin}px;min-width:${tMin}px">
           ${colgroup}
           <thead><tr>${headCells}${priceCells}</tr></thead>
           <tbody>${body}</tbody>
@@ -3090,12 +3104,14 @@ document.addEventListener('click',(e)=>{
   if(!t) return;
   toggleNotes(t.closest('.notes-host'));
 });
-/* 渠道说明折叠：点击 + 键盘 Enter/Space 展开/收起，同步 aria-expanded */
+/* 渠道说明折叠：默认两行预览，点击 + 键盘 Enter/Space 展开全部 / 收起回两行，同步 aria-expanded 与提示文字 */
 function toggleNotes(n){
-  n.classList.toggle('closed');
+  const open = n.classList.toggle('open');
   const title = n.querySelector('.nh-title');
-  if(title) title.setAttribute('aria-expanded', n.classList.contains('closed') ? 'false' : 'true');
-  if(!n.classList.contains('closed')) scheduleOverflow();
+  if(title) title.setAttribute('aria-expanded', open ? 'true' : 'false');
+  const tip = n.querySelector('.nh-tip');
+  if(tip) tip.textContent = open ? '收起' : '展开';
+  if(open) scheduleOverflow();
 }
 document.addEventListener('keydown',(e)=>{
   if(e.key !== 'Enter' && e.key !== ' ') return;
