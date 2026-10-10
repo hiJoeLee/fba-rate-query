@@ -61,6 +61,7 @@
   - **现状**：本仓库现为**双远程并存** —— `origin`（GitHub `hiJoeLee/fba-rate-query.git`，负责线上部署，不变）+ `company`（公司内部 `http://192.168.100.210/lzwm_wzf/frontend/frontend-wl-freight.git`，新增）。
   - **做了什么**：本地 `query/` 仓库 `git remote add company <公司地址>`；用 `--allow-unrelated-histories` 合并公司仓库初始提交（README 冲突已手工合并，公司「frontend-wl-freight/物流运价」项目名保留在标题，查询台说明为正文）；`git push company feat/计费:master` 推送完成，公司 master 现含查询系统完整内容（17 个文件，HEAD `901deb3`）。
   - **约定（避免双仓混乱）**：① 代码/数据改动仍照常提交并 `git push origin`（GitHub，线上部署入口）；② **需要同步公司库时**再单独执行 `git push company <分支>:master`，两边互不自动联动；③ 公司 master 内容以「查询台完整项目快照」为准，README 已合并说明。
+  - **访问条件（2026-10-10 补充）**：公司仓库 `192.168.100.210` 是**内网地址**，**必须连接公司内网才能访问/拉取/推送**（fetch/push 失败时先检查内网连通性）；GitHub `origin` 则走公网，不依赖内网。
   - **可回退**：`git remote remove company` 即断开公司远程；公司 master 改动可在其仓库侧处理。
   - **续接提示**：换工具/换人会话续接时，先读本条目 + `README.md`「本仓库主要内容」，再确认 `git remote -v` 是否还带 `company`。
 

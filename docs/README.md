@@ -157,7 +157,7 @@ cd ../parser && python3 tools/current_numbers.py
 5. `git add . && git commit -m "update: <说明>" && git push origin main`
 6. GitHub Actions 自动部署，约 1-2 分钟生效；**部署后拉取线上页面与本地比对 sha256**（9/16 前 4 次数据变更均逐字节一致）
 
-> **双远程约定（2026-10-10 起）**：本仓库现有两个远程 —— `origin`（GitHub，线上部署入口）+ `company`（公司内部 `http://192.168.100.210/lzwm_wzf/frontend/frontend-wl-freight.git`）。**两者不自动联动**：日常改动只推 `origin`；需要同步公司库时再单独执行 `git push company <分支>:master`。公司 master 内容与线上页面为同一查询台快照（合并了公司初始 README，HEAD `901deb3`）。远程清单用 `git remote -v` 现查。
+> **双远程约定（2026-10-10 起）**：本仓库现有两个远程 —— `origin`（GitHub，线上部署入口）+ `company`（公司内部 `http://192.168.100.210/lzwm_wzf/frontend/frontend-wl-freight.git`）。**两者不自动联动**：日常改动只推 `origin`；需要同步公司库时再单独执行 `git push company <分支>:master`。公司 master 内容与线上页面为同一查询台快照（合并了公司初始 README，HEAD `901deb3`）。远程清单用 `git remote -v` 现查。**公司仓库为内网地址（192.168.100.210），必须连接公司内网才能访问/拉取/推送**；GitHub 走公网，不依赖内网。
 
 推送网络方案见 `DECISION_LOG.md`。
 
