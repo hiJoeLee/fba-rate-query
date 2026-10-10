@@ -3,7 +3,7 @@
 本仓库当前内容为 **FBA 运价查询台**：供应商 FBA 运价表拆解结果的查询页面（纯静态单文件）。
 
 - **线上网址**：https://hijoelee.github.io/fba-rate-query/
-- **代码仓库**：GitHub `origin`（hiJoeLee/fba-rate-query，线上部署入口）；公司内部 `company`（http://192.168.100.210/lzwm_wzf/frontend/frontend-wl-freight.git，2026-10-10 接入，`git push company <分支>:master` 同步，两仓不自动联动）
+- **代码仓库**：公司内部 `company`（http://192.168.100.210/lzwm_wzf/frontend/frontend-wl-freight.git，**推送以此为主**，需内网，`git push company <分支>:master`）；GitHub `origin`（hiJoeLee/fba-rate-query，线上部署入口，明确需要时才推，不默认双推）
 - **项目说明、字段字典、更新流程**：见 [docs/README.md](docs/README.md)
 - **决策记录、会话续接、待办**：见 [docs/DECISION_LOG.md](docs/DECISION_LOG.md)
 
