@@ -1,6 +1,6 @@
-# FBA 运价查询台
+# frontend-wl-freight（物流运价前端仓库）
 
-供应商 FBA 运价表拆解结果的查询页面（纯静态单文件）。
+本仓库当前内容为 **FBA 运价查询台**：供应商 FBA 运价表拆解结果的查询页面（纯静态单文件）。
 
 - **线上网址**：https://hijoelee.github.io/fba-rate-query/
 - **项目说明、字段字典、更新流程**：见 [docs/README.md](docs/README.md)
