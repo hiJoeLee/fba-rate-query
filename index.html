@@ -684,7 +684,7 @@
   <!-- ===== 顶部标签：运价查询 / 运费计算（feat/计费 新增，不破坏原功能） ===== -->
   <nav class="tabs" role="tablist">
     <button class="tab active" id="tab-query" onclick="switchTab('query')">运价查询</button>
-    <button class="tab" id="tab-calc" onclick="switchTab('calc')">运费计算</button>
+    <button class="tab" id="tab-calc" style="display:none" onclick="switchTab('calc')">运费计算</button>
     <button class="tab" id="tab-admin" onclick="switchTab('admin')">附加费管理</button>
   </nav>
 
@@ -853,7 +853,7 @@ const DATA = window.__FBA_DATA__;
    邮编提示 / 货型与国家下拉）一律消费 VISIBLE；`__FBA_DATA__` 本体一字不动，
    后台管理（附加费规则库 / 渠道管理）与数据发布照旧。
    恢复：把 HIDDEN_SUPPLIERS 里对应键删掉（或整对象置 {}）即可，无需动数据。 */
-const HIDDEN_SUPPLIERS = { '蓝图梦': '暂时不需要使用' };
+const HIDDEN_SUPPLIERS = { '蓝图梦': '暂时不需要使用', '扬程': '暂时不需要使用' };
 /* ── 国家屏蔽（2026-10-09，用户拍板）────────────────────
    巴西运价当前「不需要展示、不提供运价查询」→ 查询页整体屏蔽（同供应商屏蔽口径）。
    恢复：把 HIDDEN_COUNTRIES 里对应键删掉即可，无需动数据。 */
