@@ -124,6 +124,9 @@
     background:var(--acc);opacity:.75;
   }
   @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  /* 滚动加载追加批次的卡片不参与入场动画（动画只给首屏，避免批量追加时同时起动画） */
+  .card.no-anim{animation:none}
+  .card-loading{text-align:center;color:var(--ink3);font-size:12px;font-family:var(--mono);padding:14px 0 6px;letter-spacing:.08em}
   .card .top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
   .card .name{font-size:17px;font-weight:700;color:var(--ink);letter-spacing:.01em}
   .card .line-tag{
@@ -150,6 +153,8 @@
     font-size:12px;color:var(--acc2);text-align:left;
   }
   .notes-link:hover{border-color:var(--acc);background:rgba(224,123,31,.06)}
+  /* 卡片视图内嵌渠道说明：复用表格视图的 notes-host，微调间距适配卡片 */
+  .card .notes-host{margin-top:4px}
   .price{margin-top:12px;border-top:1px dashed var(--line);padding-top:10px}
   .price .pl{font-size:11px;letter-spacing:.14em;color:var(--ink3);margin-bottom:8px;font-family:var(--mono)}
   .ptiers{display:flex;flex-wrap:wrap;gap:8px}
@@ -2714,33 +2719,48 @@ function debounceRender(){
   clearTimeout(debounceRender._t);
   debounceRender._t = setTimeout(()=>render(filter()), RENDER_DEBOUNCE_MS);
 }
-/* 卡片视图渐进渲染：首屏先出 CARD_FIRST 条，其余按帧追加，避免一次性构建 15 万个节点 */
-const CARD_FIRST = 60;
-const CARD_CHUNK = 120;
+/* 卡片视图滚动加载（2026-10-10 由「按帧追加到底」改为「滚近底部才追加」）：
+   首屏立即渲染 CARD_FIRST 条，末尾放一个哨兵；哨兵进入视口下方 CARD_SENTINEL_MARGIN 内
+   就追加 CARD_CHUNK 条，直到全部加载完移除哨兵。DOM 只随实际浏览增长，
+   不再一次建满全部卡片（实测：无筛选 10599 张时旧实现 49 万节点、30~41s 阻塞）。 */
+const CARD_FIRST = 30;              // 首屏立即渲染条数
+const CARD_CHUNK = 30;              // 每次滚动追加条数
+const CARD_SENTINEL_MARGIN = 800;   // 哨兵提前进入视口 800px 即预加载
+let cardIO = null;                  // 滚动加载观察器（重新渲染/切视图时先断开）
 function renderCards(rows){
   const list = $('#list');
   const token = ++cardToken;
+  if(cardIO){ cardIO.disconnect(); cardIO = null; }
   if(!rows.length){
     list.innerHTML = emptyHtml();
     return;
   }
-  const head = rows.slice(0, CARD_FIRST);
-  list.innerHTML = cardHtml(head, 0);
-  let i = head.length;
-  const more = ()=>{
-    if(token !== cardToken) return;        // 期间已重新筛选/切视图，放弃本次追加
-    if(i >= rows.length){ scheduleOverflow(); return; }
+  list.innerHTML = cardHtml(rows.slice(0, CARD_FIRST), 0, true);
+  if(rows.length <= CARD_FIRST){ scheduleOverflow(); return; }   // 结果少：一次渲完，无需哨兵
+  const sentinel = document.createElement('div');
+  sentinel.className = 'card-loading';
+  sentinel.textContent = '加载中…';
+  list.appendChild(sentinel);
+  let i = CARD_FIRST;
+  cardIO = new IntersectionObserver(entries=>{
+    if(token !== cardToken){ cardIO.disconnect(); cardIO = null; return; }  // 已重新筛选/切视图，放弃
+    if(!entries[0].isIntersecting) return;
+    if(i >= rows.length){                                   // 全部加载完：移除哨兵
+      cardIO.disconnect(); cardIO = null;
+      if(sentinel.parentNode) sentinel.remove();
+      scheduleOverflow();
+      return;
+    }
     const frag = document.createElement('div');
-    frag.innerHTML = cardHtml(rows.slice(i, i+CARD_CHUNK), i);
-    while(frag.firstChild) list.appendChild(frag.firstChild);
+    frag.innerHTML = cardHtml(rows.slice(i, i+CARD_CHUNK), i, false);
+    while(frag.firstChild) list.insertBefore(frag.firstChild, sentinel);
     i += CARD_CHUNK;
-    requestAnimationFrame(more);
-  };
-  if(i < rows.length) requestAnimationFrame(more);
-  else scheduleOverflow();
+  }, {root:null, rootMargin: CARD_SENTINEL_MARGIN+'px'});
+  cardIO.observe(sentinel);
 }
-/* 卡片 HTML 片段（offset 用于保持入场动画的错峰节奏） */
-function cardHtml(rows, offset){
+/* 卡片 HTML 片段。anim=true 时首屏卡片带入场动画（错峰节奏），
+   anim=false 时追加批次不带动画（.no-anim），避免批量插入时同时起动画。 */
+function cardHtml(rows, offset, anim){
   return rows.map((r,j)=>{
     const i = offset + j;
     const [h,t] = splitMode(r.运输方式);
@@ -2751,8 +2771,9 @@ function cardHtml(rows, offset){
     const priceHtml = tiers.length ? tiers.map(([tier,p])=>
       `<div class="ptier"><span class="t">${esc(tier)}</span><span class="p" title="${esc(priceTitle(r,tier,p))}">${priceBody(r,tier,p)}</span></div>`
     ).join('') : '<div class="ptier"><span class="t">—</span><span class="p">—</span></div>';
+    const animStyle = anim ? ` style="animation-delay:${Math.min(i*18,360)}ms"` : '';
     return `
-    <article class="card" style="animation-delay:${Math.min(i*18,360)}ms">
+    <article class="card${anim?'':' no-anim'}"${animStyle}>
       <div class="top">
         <div>
           <div class="name">${esc(r.渠道名称)}</div>
@@ -2780,9 +2801,9 @@ function cardHtml(rows, offset){
         ${r.开始邮编?`<div class="mi"><span class="k">开始邮编</span><span class="v">${esc(r.开始邮编)}</span></div>`:''}
         ${r.结束邮编?`<div class="mi"><span class="k">结束邮编</span><span class="v">${esc(r.结束邮编)}</span></div>`:''}
         ${r.体积重量比?`<div class="mi"><span class="k">重比</span><span class="v">1:${esc(r.体积重量比)}</span></div>`:''}
-        ${sheetHasNotes(r.供应商代码,(r.来源表名||'').trim())
-          ? `<button class="notes-link" data-sup="${esc(r.供应商代码||'')}" data-sheet="${esc((r.来源表名||'').trim())}" title="查看渠道说明">渠道说明</button>` : ''}
       </div>
+      ${sheetHasNotes(r.供应商代码,(r.来源表名||'').trim())
+        ? notesHtml(r.供应商代码||'', (r.来源表名||'').trim()) : ''}
       <div class="price">
         <div class="pl">PRICE TIERS · ${esc(curSym(r))} 每 ${esc(r.单位||'—')}</div>
         <div class="ptiers">${priceHtml}</div>
@@ -2942,6 +2963,7 @@ function buildTableHtml(gk){
 function renderTable(rows){
   const list = $('#list');
   cardToken++;                       // 切到表格视图：作废尚未完成的卡片渐进渲染
+  if(cardIO){ cardIO.disconnect(); cardIO = null; }   // 同时断开卡片滚动加载观察器
   if(!rows.length){
     list.innerHTML = emptyHtml();
     groupCache = new Map();
