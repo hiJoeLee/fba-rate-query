@@ -663,6 +663,13 @@
     .adm-row .sheet{min-width:0}
   }
 </style>
+<!-- 51.la 访问统计：?admin=1 管理员自测不采集；同步加载保证首屏 PV 不漏（并入器只改数据块，不动本 head） -->
+<script>
+if(new URLSearchParams(location.search).get('admin')!=='1'){
+  document.write('<script charset="UTF-8" id="LA_COLLECT" src="//sdk.51.la/js-sdk-pro.min.js"><\/script>');
+  document.write('<script>LA.init({id:"3RZtIt8ZLRr6R6Fp",ck:"3RZtIt8ZLRr6R6Fp",autoTrack:true})<\/script>');
+}
+</script>
 </head>
 <body>
 <div class="wrap">
