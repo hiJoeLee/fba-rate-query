@@ -706,8 +706,8 @@ if(new URLSearchParams(location.search).get('admin')!=='1'){
   <section class="filterbar collapsed">
     <button class="f-toggle" id="f-toggle">筛选条件 ▾</button>
     <div class="frow" id="frow">
-      <div class="fitem"><label>供应商文件</label>
-        <select id="f-file"><option value="">全部文件</option></select>
+      <div class="fitem"><label>代码</label>
+        <select id="f-file"><option value="">全部代码</option></select>
       </div>
       <div class="fitem" id="wh-item" style="display:none"><label>交货仓库</label>
         <select id="f-wh"><option value="">全部仓库</option></select>
@@ -2396,11 +2396,27 @@ function fileDateOf(f){
   if(m) return m[1].padStart(2,'0')+'.'+m[2].padStart(2,'0');
   return '';
 }
+/* 按供应商取一条 PUBLISHED 发布日期（'YYYY-MM-DD'）；同供应商各表发布日一致，取首条即可。
+   供文件名缺年份时补全年月日（仅展示，不改数据）。 */
+function pubDateBySupplier(sup){
+  if(!sup) return '';
+  const pre = sup + '│';
+  for(const k in PUBLISHED){ if(k.indexOf(pre)===0) return PUBLISHED[k]; }
+  return '';
+}
 function fileLabel(r){                                    // 文件名 → 原名 或 代码·日期
   const f = r && r.文件;
   if(!ANA.on || !f) return f || '';
   const code = SUP_CODE[fileToSup(f)] || fileToSup(f);
-  const d = fileDateOf(f);
+  let d = fileDateOf(f);
+  // 文件名只解析出月日（缺年份，如「vip10月19日」）→ 借发布日期补全为 年.月.日
+  if(d && !/^20\d{2}/.test(d)){
+    const pub = pubDateBySupplier(r && r.供应商代码) || pubDateBySupplier(fileToSup(f));
+    if(pub){
+      const [yy,mm,dd] = pub.split('-');
+      d = yy+'.'+mm+'.'+dd;
+    }
+  }
   return d ? code+' · '+d : code;
 }
 function srcLabelMasked(r){                               // 来源表标签：仅同名冲突时含供应商，需掩码
@@ -2478,7 +2494,7 @@ function updateDataSrc(){                              // 头部「数据源」�
 }
 function fillFileOptions(){                            // 供应商文件下拉：value 用原名、展示按脱敏
   const s = $('#f-file'); const prev = s.value;
-  s.innerHTML = '<option value="">全部文件</option>';
+  s.innerHTML = '<option value="">全部代码</option>';
   _files.forEach(f=>{ const o=document.createElement('option'); o.value=f;
     o.textContent = ANA.on ? (fileLabel({文件:f, 供应商代码:fileToSup(f)})||f) : f;
     s.appendChild(o); });
