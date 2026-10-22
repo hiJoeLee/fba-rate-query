@@ -712,8 +712,8 @@ if(new URLSearchParams(location.search).get('admin')!=='1'){
       <div class="fitem" id="wh-item" style="display:none"><label>交货仓库</label>
         <select id="f-wh"><option value="">全部仓库</option></select>
       </div>
-      <div class="fitem"><label>来源表</label>
-        <select id="f-src"><option value="">全部来源</option></select>
+      <div class="fitem"><label>渠道</label>
+        <select id="f-src"><option value="">全部渠道</option></select>
       </div>
       <div class="fitem"><label>国家</label>
         <select id="f-country"><option value="">全部国家</option></select>
@@ -2648,7 +2648,7 @@ function updateSrcs(){
   /* 来源表联动：按当前选择的文件重建选项（未选文件则列全部） */
   const sel = $('#f-src');
   const prev = sel.value;
-  sel.innerHTML = '<option value="">全部来源</option>';
+  sel.innerHTML = '<option value="">全部渠道</option>';
   /* 按「供应商│来源表」复合身份去重；同名跨供应商时标签补「供应商 · 表名」 */
   const seen = new Map();
   VISIBLE.filter(r=>!state.file || r.文件===state.file)
