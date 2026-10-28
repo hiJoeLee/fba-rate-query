@@ -677,6 +677,23 @@ if(new URLSearchParams(location.search).get('admin')!=='1'){
   })();
 }
 </script>
+<!-- 51.la 灵雀性能监控（js-sdk-perf）：?admin=1 管理员自测不采集；动态注入不阻塞首屏，onload 后 init，失败静默跳过。
+     与上方访问统计（js-sdk-pro / window.LA）是两个独立应用，互不等待；功能勾选（程序异常/性能上报/卡顿/资源异常）在灵雀控制台配置 -->
+<script>
+if(new URLSearchParams(location.search).get('admin')!=='1'){
+  !(function(c,i,e,b){
+    var h=i.createElement("script");
+    var f=i.getElementsByTagName("script")[0];
+    h.type="text/javascript";
+    h.crossorigin=true;
+    h.onload=function(){
+      try{ new c[b]["Monitor"]().init({id:"3Rb0uKE6JdaqwWvh"}); }catch(e){}
+    };
+    f.parentNode.insertBefore(h,f);
+    h.src=e;
+  })(window,document,"https://sdk.51.la/perf/js-sdk-perf.min.js","LingQue");
+}
+</script>
 </head>
 <body>
 <div class="wrap">
