@@ -259,7 +259,7 @@
   .nh-list .hl-cbm{color:#16a34a;font-weight:700}
   .nh-list .hl-money{color:#1d4ed8;font-weight:700}
   /* 目的地命中高亮（2026-10-30）：暖黄底，与备注气泡内蓝色收费词高亮区分；
-     作用域不限 .nh-list，表格列 / 卡片行两处共用。data-full 悬浮原文不高亮。 */
+     作用域不限 .nh-list，表格列 / 卡片行 / 目的地悬浮气泡三处共用（气泡走 hlDest 安全转义）。 */
   .hl-dest{background:#fff3bf;color:#8a5a00;border-radius:3px;padding:0 1px;font-weight:600}
   .nh-list li.nh-sec{list-style:none;margin:8px 0;padding:0;height:0;border:none;border-top:1px solid var(--line)}
   /* 红条款不做置顶，仅高亮（红=供应商强调，承定案；其余两家红无统一语义不特殊处理） */
@@ -299,6 +299,9 @@
   table.tbl tbody td{padding:7px 10px;border-bottom:1px solid var(--line);color:var(--ink);vertical-align:middle}
   table.tbl tbody td .cl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.45;word-break:break-all}
   table.tbl tbody td.c-eta .cl{white-space:pre-line}
+  /* 目的地搜索态（2026-10-30 方案②）：输入目的地关键词后放开目的地列两行截断、完整换行，
+     避免命中高亮落在被省略区；无关键词时回到紧凑两行。仅作用于目的地列 td.c-dest。 */
+  #list.has-dest table.tbl td.c-dest .cl{display:block;-webkit-line-clamp:unset;overflow:visible;white-space:pre-line;word-break:break-word}
   table.tbl tbody tr:nth-child(even){background:rgba(30,41,59,.015)}
   table.tbl tbody tr:hover{background:rgba(224,123,31,.05)}
   table.tbl td.num{text-align:right;font-family:var(--mono);font-weight:600;color:var(--acc2);white-space:nowrap}
@@ -2638,9 +2641,9 @@ function ensureTip(){
   document.body.appendChild(tipEl);
   return tipEl;
 }
-function showTip(text,anchor){
+function showTip(text,anchor,html){
   const t=ensureTip();
-  t.textContent=text;
+  if(html){ t.innerHTML=text; } else { t.textContent=text; }
   t.classList.remove('flip');
   t.style.display='block';
   const r=anchor.getBoundingClientRect();
@@ -2664,7 +2667,16 @@ function bindOverflow(){
     td._ovChecked = true;
     if(span.scrollWidth>span.clientWidth || span.scrollHeight>span.clientHeight){
       td.classList.add('ov');
-      if(!td._tipbound){ td._tipbound=true; td.addEventListener('click',e=>{ e.stopPropagation(); showTip(td.getAttribute('data-full'), td); }); }
+      if(!td._tipbound){
+        td._tipbound=true;
+        td.addEventListener('click',e=>{
+          e.stopPropagation();
+          const raw=td.getAttribute('data-full');   /* 属性值经 esc 写入，getAttribute 解码为纯文本原文 */
+          /* 目的地列：气泡内同步命中高亮（hlDest 先 esc 再包 mark，注入安全）；其余列维持纯文本 */
+          if(td.classList.contains('c-dest')){ showTip(hlDest(raw, state.dest), td, true); }
+          else { showTip(raw, td); }
+        });
+      }
     }
   });
 }
@@ -2764,6 +2776,8 @@ function filter(){
 function render(rows){
   clearTimeout(debounceRender._t);   // 有立即渲染时，撤销尚未执行的防抖渲染，避免重复渲染
   $('#cnt').textContent = rows.length;
+  /* 搜索态标记：目的地关键词非空时放开表格目的地列截断（CSS #list.has-dest td.c-dest .cl） */
+  $('#list').classList.toggle('has-dest', !!String(state.dest||'').trim());
   if(rows.length===0) laTrack('filter_empty',{country:state.country, file:state.file, src:state.src, city:state.city, q:state.q?'1':'0', zip:state.zip?'1':'0', dest:state.dest?'1':'0'});   /* 0 条：定位哪个组合漏价；搜索词/邮编/目的地只记有无 */
   state.view==='table' ? renderTable(rows) : renderCards(rows);
   updateToggle();
@@ -3045,7 +3059,7 @@ function buildTableHtml(gk){
         <td><span class="cl">${esc(r.货物类型||'—')}</span></td>
         <td>${tax}</td>
         <td><span class="cl">${esc(curOf(r))}</span></td>
-        <td data-full="${esc(dest)}"><span class="cl">${hlDest(dest, state.dest)}</span></td>
+        <td class="c-dest" data-full="${esc(dest)}"><span class="cl">${hlDest(dest, state.dest)}</span></td>
         <td data-full="${esc(r.城市||'—')}"><span class="cl">${esc(r.城市||'—')}</span></td>
         <td class="c-zip"><span class="cl">${esc(r.开始邮编||'—')}</span></td>
         <td class="c-zip"><span class="cl">${esc(r.结束邮编||'—')}</span></td>
