@@ -255,6 +255,9 @@
   .nh-list .hl-kg{color:#1d4ed8;font-weight:700}
   .nh-list .hl-cbm{color:#16a34a;font-weight:700}
   .nh-list .hl-money{color:#1d4ed8;font-weight:700}
+  /* 目的地命中高亮（2026-10-30）：暖黄底，与备注气泡内蓝色收费词高亮区分；
+     作用域不限 .nh-list，表格列 / 卡片行两处共用。data-full 悬浮原文不高亮。 */
+  .hl-dest{background:#fff3bf;color:#8a5a00;border-radius:3px;padding:0 1px;font-weight:600}
   .nh-list li.nh-sec{list-style:none;margin:8px 0;padding:0;height:0;border:none;border-top:1px solid var(--line)}
   /* 红条款不做置顶，仅高亮（红=供应商强调，承定案；其余两家红无统一语义不特殊处理） */
   .nh-list li.nh-red{color:#b91c1c;background:rgba(220,38,38,.05);
@@ -707,7 +710,7 @@ if(new URLSearchParams(location.search).get('admin')!=='1'){
     <div class="stats">
       <div class="stat"><div class="n" id="st-rec">—</div><div class="l">运价记录</div></div>
       <div class="stat"><div class="n" id="st-src">—</div><div class="l">来源表</div></div>
-      <div class="stat"><div class="n" id="st-country">—</div><div class="l">国家</div></div>
+      <div class="stat"><div class="n" id="st-country">—</div><div class="l">国家/地区</div></div>
       <div class="stat"><div class="n" id="st-ch">—</div><div class="l">渠道</div></div>
     </div>
   </header>
@@ -732,8 +735,11 @@ if(new URLSearchParams(location.search).get('admin')!=='1'){
       <div class="fitem"><label>渠道</label>
         <select id="f-src"><option value="">全部渠道</option></select>
       </div>
-      <div class="fitem"><label>国家</label>
-        <select id="f-country"><option value="">全部国家</option></select>
+      <div class="fitem"><label>国家/地区</label>
+        <select id="f-country"><option value="">全部国家/地区</option></select>
+      </div>
+      <div class="fitem"><label>目的地</label>
+        <input type="search" id="f-dest" autocomplete="off" placeholder="仓库码/国名/区域，如 MEM1、西班牙、美西">
       </div>
       <div class="fitem"><label>头程</label>
         <select id="f-head"><option value="">全部头程</option></select>
@@ -1350,7 +1356,7 @@ function basisHtml(c, hitTier){
     :'<div class="b-empty">无档位价格</div>';
   const fLabel=fileLabel({文件:c.文件, 供应商代码:fileToSup(c.文件)});
   const fields=[
-    ['文件',ANA.on?fLabel:c.文件],['来源表',srcLabelMasked(c)],['来源行号',c.来源行号],['区间',c.区间],['国家',c.国家],
+    ['文件',ANA.on?fLabel:c.文件],['来源表',srcLabelMasked(c)],['来源行号',c.来源行号],['区间',c.区间],['国家/地区',c.国家],
     ['运输方式',c.运输方式],['交货地',c.交货地],['交货仓库',maskNames(c.交货仓库)],['货物类型',c.货物类型],
     ['可收货城市',(c.可收货城市||[]).join('、')],['FBA仓库',maskNames(c.FBA仓库)],['是否包税',c.是否包税],
     ['开始时间',c.开始时间],['货柜容量',c.货柜容量],['时效',c.时效]
@@ -2234,7 +2240,7 @@ function updTypeNote(){
   if(ty) ty.addEventListener('change', updTypeNote);
   if(cn){
     const cs=[...new Set(VISIBLE.map(function(r){return r.国家;}).filter(function(v){return v;}))].sort(function(a,b){return a.localeCompare(b,'zh');});
-    cn.innerHTML='<option value="">全部国家</option>'+cs.map(function(c){return '<option>'+c+'</option>';}).join('');
+    cn.innerHTML='<option value="">全部国家/地区</option>'+cs.map(function(c){return '<option>'+c+'</option>';}).join('');
     cn.addEventListener('change', fillType);
   }
   fillType();
@@ -2437,7 +2443,7 @@ const $ = s => document.querySelector(s);
    （不用中文「其他」做 value，避免与城市名撞）。 */
 const CITY_LIST = ["广州", "深圳", "东莞", "厦门", "福州", "义乌", "宁波", "上海", "杭州", "台州", "武汉", "郑州", "青岛", "泉州", "中山"];
 const OTHER_CITY = '__other__';
-const state = {file:'', src:'', country:'', head:'', tail:'', goods:'', tax:'', cur:'', city:'', wh:'', q:'', zip:'', view:'table'};
+const state = {file:'', src:'', country:'', head:'', tail:'', goods:'', tax:'', cur:'', city:'', wh:'', q:'', zip:'', dest:'', view:'table'};
 
 /* ── 渲染性能五条（实测：filter() 仅 0.6ms，瓶颈在「每次输入都全量重建 DOM + 强制布局 193ms」）──
    1) 分组懒渲染：收起的分组不生成 <tbody>，点击展开时才现场生成 → 收起态零布局成本；
@@ -2600,6 +2606,26 @@ function esc(s){
   return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+/* 目的地显示值（卡片 / 表格 / 筛选共用同一口径，避免三处各写一份兜底串漂移）：
+   FBA仓库（脱敏后） → 城市 → 邮编段（开始 - 结束） → '—'。 */
+function destText(r){
+  return maskNames(r.FBA仓库) || r.城市 || (r.开始邮编 ? (r.开始邮编+' - '+(r.结束邮编||'')) : '') || '—';
+}
+/* 目的地命中高亮：先 esc 转义再包裹 mark（防注入）；大小写不敏感匹配，展示原文写法；
+   无关键词时返回纯转义文本。data-full 悬浮原文不经过本函数。 */
+function hlDest(text, kw){
+  const safe = esc(text);
+  const k = esc(kw).trim().toLowerCase();
+  if(!k) return safe;
+  const hay = safe.toLowerCase();
+  let out='', i=0, idx;
+  while((idx=hay.indexOf(k,i))>=0){
+    out += safe.slice(i,idx) + '<mark class="hl-dest">'+safe.slice(idx,idx+k.length)+'</mark>';
+    i = idx+k.length;
+  }
+  return out + safe.slice(i);
+}
+
 /* ── 长文本气泡：点击单元格查看全文 ───────────────────── */
 let tipEl=null;
 function ensureTip(){
@@ -2719,6 +2745,9 @@ function filter(){
     if(state.wh && whAtoms(r.交货仓库).indexOf(state.wh)<0) return false;
     if(state.cur && curOf(r)!==state.cur) return false;
     if(state.zip && !zipHit(r, state.zip)) return false;
+    /* 目的地（2026-10-30）：**仅**匹配目的地显示值（destText 兜底串），子串包含、大小写不敏感；
+       不并入渠道名 / 供应商名等字段，与全局关键词框 #f-q 划界。 */
+    if(state.dest && !destText(r).toLowerCase().includes(state.dest.toLowerCase())) return false;
     if(state.q){
       /* 关键词搜索加入「可收货城市」（2026-09-19）：原先搜「深圳」找不到扬程华南区域的价
          —— 因为扬程的 `交货仓库` 写的是「华南区域」，城市名根本不在被搜的串里。 */
@@ -2732,14 +2761,14 @@ function filter(){
 function render(rows){
   clearTimeout(debounceRender._t);   // 有立即渲染时，撤销尚未执行的防抖渲染，避免重复渲染
   $('#cnt').textContent = rows.length;
-  if(rows.length===0) laTrack('filter_empty',{country:state.country, file:state.file, src:state.src, city:state.city, q:state.q?'1':'0', zip:state.zip?'1':'0'});   /* 0 条：定位哪个组合漏价；搜索词/邮编只记有无 */
+  if(rows.length===0) laTrack('filter_empty',{country:state.country, file:state.file, src:state.src, city:state.city, q:state.q?'1':'0', zip:state.zip?'1':'0', dest:state.dest?'1':'0'});   /* 0 条：定位哪个组合漏价；搜索词/邮编/目的地只记有无 */
   state.view==='table' ? renderTable(rows) : renderCards(rows);
   updateToggle();
 }
 
-/* 已生效筛选条件数：10 个筛选项任意一个非空即计 1 */
+/* 已生效筛选条件数：13 个筛选项任意一个非空即计 1 */
 function activeCount(){
-  return ['file','src','country','head','tail','goods','tax','cur','city','wh','q','zip'].filter(k=>state[k]!=='' && state[k]!=null).length;
+  return ['file','src','country','dest','head','tail','goods','tax','cur','city','wh','q','zip'].filter(k=>state[k]!=='' && state[k]!=null).length;
 }
 /* 折叠按钮文案 + 「N 项生效」胶囊（仅折叠时展示，防止展开态冗余） */
 function updateToggle(){
@@ -2761,18 +2790,23 @@ function emptyHtml(){
   const tip = n>0
     ? '当前有 <b>'+n+'</b> 个筛选条件生效，换个条件或重置筛选试试'
     : '当前没有任何筛选条件，请重置或刷新数据源后重试';
+  const destHint = state.dest
+    ? '<div class="empty-s" style="margin-top:4px">目的地可输入仓库码片段（如 MEM）、国名（如西班牙）或区域（如美西）；核对写法后重试，或重置筛选</div>'
+    : '';
   return '<div class="empty">'
     + '<div class="empty-ico">∅</div>'
     + '<div class="empty-t">没有匹配的运价记录</div>'
     + '<div class="empty-s">'+tip+'</div>'
+    + destHint
     + '<button class="empty-btn" id="btn-empty-reset">重置筛选</button>'
     + '</div>';
 }
 function resetAll(){
-  ['file','src','country','head','tail','goods','tax','cur','city','wh','zip'].forEach(k=>{state[k]='';});
+  ['file','src','country','dest','head','tail','goods','tax','cur','city','wh','zip'].forEach(k=>{state[k]='';});
   state.q='';
   $('#f-file').value='';updateSrcs();updateDataSrc();$('#f-country').value='';$('#f-head').value='';$('#f-tail').value='';$('#f-goods').value='';$('#f-tax').value='';$('#f-cur').value='';$('#f-city').value='';updateWarehouses();$('#f-q').value='';
   $('#f-zip').value=''; zipHint('');
+  $('#f-dest').value='';
   render(filter());
 }
 
@@ -2830,7 +2864,7 @@ function cardHtml(rows, offset, anim){
     const [h,t] = splitMode(r.运输方式);
     const taxCls = r.是否包税==='是'?'tax-y':(r.是否包税==='否'?'tax-n':'');
     const taxTxt = r.是否包税==='是'?'包税':(r.是否包税==='否'?'不包税':'—');
-    const dest = maskNames(r.FBA仓库) || r.城市 || (r.开始邮编? (r.开始邮编+' - '+(r.结束邮编||'')) : '') || '—';
+    const dest = destText(r);
     const tiers = Object.entries(r.价格||{});
     const priceHtml = tiers.length ? tiers.map(([tier,p])=>
       `<div class="ptier"><span class="t">${esc(tier)}</span><span class="p" title="${esc(priceTitle(r,tier,p))}">${priceBody(r,tier,p)}</span></div>`
@@ -2857,7 +2891,7 @@ function cardHtml(rows, offset, anim){
         <div class="mi"><span class="k">来源</span><span class="v">${esc(srcLabelMasked(r))} R${esc(r.来源行号??'')}</span></div>
         <div class="mi"><span class="k">发布</span><span class="v">${esc(pubDateOf(r))}</span></div>
         <div class="mi"><span class="k">时效</span><span class="v">${esc(r.时效||'—')}</span></div>
-        <div class="mi"><span class="k">目的地</span><span class="v">${esc(dest)}</span></div>
+        <div class="mi"><span class="k">目的地</span><span class="v">${hlDest(dest, state.dest)}</span></div>
         <div class="mi"><span class="k">交货地</span><span class="v">${esc(r.交货地||'—')}</span></div>
         <div class="mi"><span class="k">交货仓库</span><span class="v">${esc(r.交货仓库||'—')}</span></div>
         ${(r.可收货城市||[]).length?`<div class="mi"><span class="k">可收货城市</span><span class="v">${esc(r.可收货城市.join('/'))}</span></div>`:''}
@@ -2877,7 +2911,7 @@ function cardHtml(rows, offset, anim){
 }
 
 /* 信息列固定宽，价格列均分剩余空间（table-layout:fixed）—— 提为常量，避免每个分组重复构建 */
-const TBL_INFO_COLS = [['来源',92],['渠道名称',156],['运输方式',92],['可收货城市',190],['交货仓库',124],['国家',72],['货型',62],['包税',52],['货币',56],['目的地',124],['城市',72],['开始邮编',68],['结束邮编',68],['时效',144]];
+const TBL_INFO_COLS = [['来源',92],['渠道名称',156],['运输方式',92],['可收货城市',190],['交货仓库',124],['国家/地区',104],['货型',62],['包税',52],['货币',56],['目的地',124],['城市',72],['开始邮编',68],['结束邮编',68],['时效',144]];
 
 /* 本表报价说明（备注层）：查 __FBA_NOTES__[供应商][来源表名]。
    只保留源表自带编号的条款（无编号碎片=目的地/仓库/促销一律不进——目的地本就在价格表列）。
@@ -2993,7 +3027,7 @@ function buildTableHtml(gk){
   const priceCells = tiers.map(t=>`<th class="num">${esc(t)}</th>`).join('');
   const body = g.map(r=>{
     const tax = r.是否包税==='是'?'<span class="tx tx-y">包税</span>':(r.是否包税==='否'?'<span class="tx tx-n">不包税</span>':'—');
-    const dest = maskNames(r.FBA仓库) || r.城市 || (r.开始邮编? (r.开始邮编+' - '+(r.结束邮编||'')) : '') || '—';
+    const dest = destText(r);
     const priceTd = tiers.map(t=>{
       const v = (r.价格||{})[t];
       return (v===undefined||v===null) ? '<td class="dash">—</td>' : `<td class="num" title="${esc(priceTitle(r,t,v))}">${priceBody(r,t,v)}</td>`;
@@ -3008,7 +3042,7 @@ function buildTableHtml(gk){
         <td><span class="cl">${esc(r.货物类型||'—')}</span></td>
         <td>${tax}</td>
         <td><span class="cl">${esc(curOf(r))}</span></td>
-        <td data-full="${esc(dest)}"><span class="cl">${esc(dest)}</span></td>
+        <td data-full="${esc(dest)}"><span class="cl">${hlDest(dest, state.dest)}</span></td>
         <td data-full="${esc(r.城市||'—')}"><span class="cl">${esc(r.城市||'—')}</span></td>
         <td class="c-zip"><span class="cl">${esc(r.开始邮编||'—')}</span></td>
         <td class="c-zip"><span class="cl">${esc(r.结束邮编||'—')}</span></td>
@@ -3076,7 +3110,7 @@ function renderTable(rows){
     .addEventListener('change',e=>{
       state[k]=e.target.value;
       if(k==='file'){ updateSrcs(); updateWarehouses(); updateDataSrc(); }
-      laTrack('filter_use',{f:k, country:state.country, file:state.file, src:state.src, q:state.q?'1':'0', zip:state.zip?'1':'0'});
+      laTrack('filter_use',{f:k, country:state.country, file:state.file, src:state.src, q:state.q?'1':'0', zip:state.zip?'1':'0', dest:state.dest?'1':'0'});
       render(filter());
     });
 });
@@ -3090,6 +3124,10 @@ $('#ana').addEventListener('change',e=>{
   if(calcRan && $c('calc-list')) calcRun();   // 计算页卡片供应商展示位跟随脱敏刷新
 });
 $('#f-q').addEventListener('input',e=>{state.q=e.target.value.trim();debounceRender();});
+$('#f-dest').addEventListener('input',e=>{
+  state.dest = e.target.value.trim().replace(/\s+/g,' ');   // 首尾 trim、连续空白压单空格；仅规范化匹配口径，不回显改写输入框
+  debounceRender();
+});
 $('#f-zip').addEventListener('input',e=>{
   const d = e.target.value.replace(/\D/g,'').slice(0,5);   // 只留数字，最多 5 位（即时回显，不防抖）
   if(e.target.value !== d) e.target.value = d;
