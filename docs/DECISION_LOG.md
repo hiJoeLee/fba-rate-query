@@ -60,7 +60,7 @@
 - **目的地高亮在长文本截断下的可见性处理（2026-10-30；方案①气泡高亮 + 方案②搜索态放开截断）**
   - **问题**：表格目的地列 `.cl` 为两行 `line-clamp:2` 截断；长组合串（多仓换行拼接、超长备注串）的命中词若落在省略区，`mark.hl-dest` 看不到。卡片视图目的地 `.v` 为自然换行、不截断，问题集中在表格视图；长度分布以 `tools` 旁临时脚本现算为准（多数为短码、长尾长串占比小，不登记精确值）。
   - **方案① 气泡内高亮**：`showTip(text,anchor,html)` 增加 HTML 分支；目的地列 td 打 `c-dest` 标记，点击气泡时原文经 `hlDest(raw, state.dest)` 渲染（先 esc 再包 mark，注入安全沿用既有做法）；其余列（渠道名 / 可收货城市 / 交货仓库 / 城市 / 时效）仍 `textContent` 纯文本。无关键词时 `hlDest` 返回纯转义文本，气泡行为与原先一致。
-  - **方案② 搜索态放开截断**：`render()` 入口按 `state.dest` 非空给 `#list` 切换 `has-dest` 类；CSS `#list.has-dest table.tbl td.c-dest .cl` 取消 clamp、`display:block` + `pre-line` 完整换行显示。无关键词时回到紧凑两行，密度代价只出现在已被过滤缩小的结果集内。
+  - **方案② 搜索态放开截断（后收窄为方向②：仅宽屏放开）**：`render()` 入口按 `state.dest` 非空给 `#list` 切换 `has-dest` 类；放开规则 `#list.has-dest table.tbl td.c-dest .cl`（取消 clamp、`display:block` + `pre-line` 完整换行）包在 `@media (min-width:641px)` 内——**宽屏(>640px)输入关键词后完整换行显示**；**窄屏(≤640px，断点 640 与页面既有窄屏口径一致)维持两行截断，靠方案①点气泡看标黄全文**（实测放开后长串在固定窄列宽内折行过多、手机纵向占满屏，故收窄）。无关键词时宽屏同样回到紧凑两行。
   - **否决**：整表永久取消截断（常态密度垮）、命中片段 snippet 切片（长尾占比小、投入产出不划算，留待二期若高频再评估）、首条自动滚动定位（分组目录表格收益有限）。
   - **衔接事实**：气泡原文取自 `data-full` 属性（写入时已 esc，`getAttribute` 解码为纯文本）；`bindOverflow` 的 `_ovChecked/_tipbound` 缓存挂在节点上，每次 `list.innerHTML` 重建即随节点销毁，切换搜索态不会残留旧绑定。
 

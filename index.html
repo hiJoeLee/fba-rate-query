@@ -299,9 +299,12 @@
   table.tbl tbody td{padding:7px 10px;border-bottom:1px solid var(--line);color:var(--ink);vertical-align:middle}
   table.tbl tbody td .cl{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;line-height:1.45;word-break:break-all}
   table.tbl tbody td.c-eta .cl{white-space:pre-line}
-  /* 目的地搜索态（2026-10-30 方案②）：输入目的地关键词后放开目的地列两行截断、完整换行，
-     避免命中高亮落在被省略区；无关键词时回到紧凑两行。仅作用于目的地列 td.c-dest。 */
-  #list.has-dest table.tbl td.c-dest .cl{display:block;-webkit-line-clamp:unset;overflow:visible;white-space:pre-line;word-break:break-word}
+  /* 目的地搜索态（2026-10-30 方案②，后收窄为方向②：仅宽屏放开）：宽屏(>640px)输入目的地关键词后放开
+     目的地列两行截断、完整换行，避免命中高亮落在被省略区；窄屏(≤640px)维持两行截断，靠点气泡看高亮全文。
+     无关键词时宽屏也回到紧凑两行。仅作用于目的地列 td.c-dest；断点 640 与页面既有窄屏口径一致。 */
+  @media (min-width:641px){
+    #list.has-dest table.tbl td.c-dest .cl{display:block;-webkit-line-clamp:unset;overflow:visible;white-space:pre-line;word-break:break-word}
+  }
   table.tbl tbody tr:nth-child(even){background:rgba(30,41,59,.015)}
   table.tbl tbody tr:hover{background:rgba(224,123,31,.05)}
   table.tbl td.num{text-align:right;font-family:var(--mono);font-weight:600;color:var(--acc2);white-space:nowrap}
