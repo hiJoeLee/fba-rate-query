@@ -87,6 +87,9 @@
     border:1px solid var(--line2);border-radius:8px;
     padding:8px 10px;font-size:13px;font-family:var(--sans);outline:none;
     transition:border-color .15s, box-shadow .15s;
+  }
+  /* 下拉箭头仅给 select；文本框（目的地 #f-dest / 关键词 #f-q / 邮编 #f-zip）不带箭头，避免误导成可选列表 */
+  select{
     appearance:none;-webkit-appearance:none;
     background-image:linear-gradient(45deg,transparent 50%,var(--ink3) 50%),linear-gradient(135deg,var(--ink3) 50%,transparent 50%);
     background-position:calc(100% - 16px) 50%,calc(100% - 11px) 50%;
@@ -739,7 +742,7 @@ if(new URLSearchParams(location.search).get('admin')!=='1'){
         <select id="f-country"><option value="">全部国家/地区</option></select>
       </div>
       <div class="fitem"><label>目的地</label>
-        <input type="search" id="f-dest" autocomplete="off" placeholder="仓库码/国名/区域，如 MEM1、西班牙、美西">
+        <input type="search" id="f-dest" autocomplete="off" placeholder="仓库码/国名/区域">
       </div>
       <div class="fitem"><label>头程</label>
         <select id="f-head"><option value="">全部头程</option></select>
@@ -864,7 +867,7 @@ if(new URLSearchParams(location.search).get('admin')!=='1'){
   </div>
 
   <footer>
-    <div>fba_rate_parser · 拆解输出 · v0.9.0</div>
+    <div id="app-version">v20261030.01</div>
     <div>价格与币种为源表原始值 · <b>跨币种不可直接比较</b> · 仅用于市场验证 · <b>括号内为利润加成（预览）</b></div>
   </footer>
 
