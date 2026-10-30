@@ -59,10 +59,10 @@
 
 - **footer 版本号改为「日期.当天发布序号」机制（2026-10-30）**
   - **旧状态**：footer 第一行原为写死的 `fba_rate_parser · 拆解输出 · v0.9.0` 纯文本，不随发布变化，且与解析端发布存档脱节。
-  - **新机制**：显示号格式 `vYYYYMMDD.NN`（示例 `v20261030.01`，具体值由脚本现算、不在此登记）；元素固定为 `<div id="app-version">`，由解析端脚本 `parser/tools/bump_version.py` 生成写入（默认 dry-run 只打印，`--apply` 落盘；`--date YYYYMMDD` 可补录指定日期）。
+  - **新机制**：显示号格式 `vYYYYMMDD.NN`（示例 `v20261030.01`，具体值由脚本现算、不在此登记）；版本值放在 `<span id="app-version">`，前缀「版本号：」为静态文案、脚本只替换 span 内的值（默认 dry-run 只打印，`--apply` 落盘；`--date YYYYMMDD` 可补录指定日期）。
   - **序号口径（不数 git commit、也不数 push 次数）**：取 `parser/releases/index.json` 中 `status=published` 且 `version` 以当天日期开头的条数 +1；含 rollback 回退发布；UI 微调 / 文档 / 脚本调试等不并表发布的动作不计入。跨天自动从 `01` 重计。内部存档号 `YYYYMMDD-HHMMSS`（防同秒冲突、供回退定位）保持原样，与 footer 友好短号分工不同。
   - **使用衔接**：并表发布 `merge_batch_to_page.py --apply` 成功后跑一次 `python3 ../parser/tools/bump_version.py --apply`，再随页面 commit/push；后续可把这一步挂到主发布脚本落盘末尾实现全自动。版本号直接写入文件，本地 / 内网 / Pages 打开为同一号（区别于仅在 Pages 线上生效的 CI 临时注入方案）。
-  - **同批 UI 微调**：① 文本框 `#f-dest` / `#f-q` / `#f-zip` 去掉共享样式继承下来的下拉三角箭头，箭头仅保留给 `select`；② 目的地占位文案精简为 `仓库码/国名/区域`（删除举例）；③ footer 第一行精简为仅版本号，第二行价格口径合规说明（跨币种不可直接比较 / 括号内利润加成预览）原样保留。
+  - **同批 UI 微调**：① 文本框 `#f-dest` / `#f-q` / `#f-zip` 去掉共享样式继承下来的下拉三角箭头，箭头仅保留给 `select`；② 目的地占位文案精简为 `仓库码/国名/区域`（删除举例）；③ footer 第一行为「版本号：vYYYYMMDD.NN」（补「版本号：」前缀），第二行由原价格口径长句（跨币种不可直接比较 / 括号内利润加成预览）精简为「仅用内部测试使用」。
 
 - **筛选栏「国家」显示名改为「国家/地区」（2026-10-30）**
   - **只改界面文案、不动数据契约**：统计卡 `#st-country` 标题、筛选栏 `#f-country` 的 label 与占位（全部国家/地区）、表格列名 `TBL_INFO_COLS`（列宽 72 → 104px 容纳 5 字）、计算页明细字段标签、计算视图 `#c_cn` 下拉占位；**数据键 `国家`、`state.country`、控件 id `f-country` 标识符与过滤逻辑全部不变**。
