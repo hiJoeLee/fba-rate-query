@@ -421,3 +421,11 @@
 - `docs/DECISION_LOG.md` — 决策记录、会话续接说明、待办、踩坑点
 
 根目录 `README.md` 为指向 `docs/README.md` 的跳转页（GitHub 首页仍能展示项目入口）。
+
+## 会话记录（2026-11-03）
+
+- **内网同步：master（内网主线）快进至 3c5c89a 并推送 company/master（2026-11-03；用户指令）**
+  - 动作：`master（内网主线）` fast-forward 到 `main（github）`（`3c5c89a`，三家基线 + 皓鹏 11-02 换期并表，16 表/3339 处变价 + footer v20261102.02），`git push company master:master` 成功（`9ac46f0..3c5c89a`）。
+  - 含义：master 与 main（github）内容一致；**不含**南鹏/振韵（未核对数据仍在 `feat/fba（新供应商）`，`09ac8c2`，ahead 4 未推送）。
+  - 背景约定：线上/内网只放「机器验证 + 人工核对完成」的数据；新供应商核对完成、用户确认后再合回 main。
+  - 踩坑记录：`feat/fba` 分支已更名 `feat/fba（新供应商）`；origin/main 当前 `3c5c89a` 不含新供应商数据（index.html 实测南鹏/振韵 0 数据行）。
